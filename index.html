@@ -1,0 +1,1851 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Taller Motos — Gestión</title>
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+  /* ===================== Tema / variables ===================== */
+  :root{
+    --bg:#0b1220;        /* fondo página, azul muy oscuro */
+    --bg-2:#0f172a;      /* sidebar */
+    --surface:#16213a;   /* tarjetas / paneles */
+    --surface-2:#1e293b;
+    --surface-3:#243149;
+    --border:#27324a;
+    --text:#e6edf6;
+    --text-dim:#9fb0cc;
+    --muted:#6b7a96;
+    --accent:#f97316;    /* naranja taller */
+    --accent-2:#fb923c;
+    --accent-soft:rgba(249,115,22,.14);
+    --blue:#3b82f6;
+    --green:#22c55e;
+    --amber:#f59e0b;
+    --red:#ef4444;
+    --cyan:#06b6d4;
+    --radius:14px;
+    --radius-sm:9px;
+    --shadow:0 12px 34px rgba(0,0,0,.40);
+    --font:'Inter',ui-sans-serif,system-ui,-apple-system,'Segoe UI',Roboto,Arial,sans-serif;
+  }
+
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%}
+  body{
+    font-family:var(--font);
+    background:radial-gradient(1200px 600px at 80% -10%, #122038 0%, var(--bg) 55%);
+    color:var(--text);
+    -webkit-font-smoothing:antialiased;
+    font-size:14.5px;
+  }
+  a{color:inherit}
+  button{font-family:inherit}
+
+  /* ===================== Layout ===================== */
+  .app{display:flex;min-height:100vh}
+
+  .sidebar{
+    width:248px;min-width:248px;
+    background:linear-gradient(180deg,#0f1a30 0%, var(--bg-2) 100%);
+    border-right:1px solid var(--border);
+    display:flex;flex-direction:column;
+    position:sticky;top:0;height:100vh;
+  }
+  .brand{
+    display:flex;align-items:center;gap:12px;
+    padding:20px 18px 16px;border-bottom:1px solid var(--border);
+  }
+  .brand .logo{
+    width:40px;height:40px;border-radius:11px;flex:none;
+    background:linear-gradient(135deg,var(--accent),#ea580c);
+    display:grid;place-items:center;color:#fff;font-size:20px;
+    box-shadow:0 6px 16px rgba(249,115,22,.4);
+  }
+  .brand h1{font-size:15px;margin:0;line-height:1.15;font-weight:700;letter-spacing:.2px}
+  .brand span{font-size:11.5px;color:var(--text-dim);font-weight:500}
+
+  .nav{padding:12px 10px;overflow-y:auto;flex:1}
+  .nav-group-label{
+    font-size:10.5px;text-transform:uppercase;letter-spacing:.12em;
+    color:var(--muted);font-weight:700;margin:14px 12px 6px;
+  }
+  .nav-item{
+    display:flex;align-items:center;gap:12px;width:100%;
+    padding:10px 12px;margin:2px 0;border:0;background:transparent;
+    color:var(--text-dim);border-radius:10px;cursor:pointer;
+    font-size:14px;font-weight:500;text-align:left;transition:.15s;
+  }
+  .nav-item:hover{background:var(--surface-2);color:var(--text)}
+  .nav-item.active{background:var(--accent-soft);color:var(--accent-2);font-weight:600}
+  .nav-item.active .ic{color:var(--accent)}
+  .nav-item .ic{width:20px;text-align:center;font-size:16px;flex:none;color:var(--muted)}
+  .nav-item .count{
+    margin-left:auto;background:var(--surface-3);color:var(--text-dim);
+    font-size:11px;font-weight:700;border-radius:20px;padding:1px 8px;min-width:22px;text-align:center;
+  }
+  .nav-item.active .count{background:var(--accent);color:#1a1207}
+
+  .sidebar-foot{padding:12px 14px;border-top:1px solid var(--border);font-size:11.5px;color:var(--muted)}
+  .sync-pill{
+    display:inline-flex;align-items:center;gap:7px;
+    background:var(--surface-2);border:1px solid var(--border);
+    padding:6px 10px;border-radius:20px;color:var(--text-dim);font-weight:600;font-size:11.5px;
+  }
+  .dot{width:8px;height:8px;border-radius:50%;background:var(--amber);box-shadow:0 0 0 3px rgba(245,158,11,.18)}
+
+  /* ===================== Contenido ===================== */
+  .content{flex:1;min-width:0;display:flex;flex-direction:column}
+  .topbar{
+    display:flex;align-items:center;gap:16px;
+    padding:18px 26px;border-bottom:1px solid var(--border);
+    position:sticky;top:0;background:rgba(11,18,32,.82);backdrop-filter:blur(10px);z-index:5;
+  }
+  .topbar h2{margin:0;font-size:19px;font-weight:700}
+  .topbar .sub{color:var(--text-dim);font-size:12.5px;margin-top:2px}
+  .topbar .spacer{flex:1}
+
+  .view-wrap{padding:24px 26px 60px;max-width:1180px;width:100%}
+  .view{display:none}
+  .view.active{display:block;animation:fade .25s ease}
+  @keyframes fade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+
+  /* ===================== Componentes ===================== */
+  .btn{
+    display:inline-flex;align-items:center;gap:8px;
+    border:1px solid var(--border);background:var(--surface-2);color:var(--text);
+    padding:9px 15px;border-radius:10px;cursor:pointer;font-size:13.5px;font-weight:600;transition:.15s;
+  }
+  .btn:hover{background:var(--surface-3);border-color:#33415c}
+  .btn.primary{background:linear-gradient(135deg,var(--accent),#ea580c);border-color:transparent;color:#fff;box-shadow:0 6px 16px rgba(249,115,22,.3)}
+  .btn.primary:hover{filter:brightness(1.06)}
+  .btn.ghost{background:transparent}
+  .btn.danger{color:var(--red);border-color:transparent;background:transparent}
+  .btn.danger:hover{background:rgba(239,68,68,.12)}
+  .btn.sm{padding:6px 11px;font-size:12.5px}
+  .btn.icon{padding:7px 9px}
+
+  .card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow)}
+  .toolbar{display:flex;align-items:center;gap:12px;margin-bottom:18px;flex-wrap:wrap}
+  .toolbar .spacer{flex:1}
+
+  .field{position:relative}
+  .input,.select{
+    width:100%;background:var(--surface-2);border:1px solid var(--border);color:var(--text);
+    padding:10px 12px;border-radius:10px;font-size:13.5px;outline:none;transition:.15s;
+  }
+  .input::placeholder{color:var(--muted)}
+  .input:focus,.select:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+  .search{max-width:320px}
+  .search .input{padding-left:36px}
+  .search .mag{position:absolute;left:11px;top:50%;transform:translateY(-50%);color:var(--muted);font-size:14px}
+
+  table{width:100%;border-collapse:collapse}
+  thead th{
+    text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.08em;
+    color:var(--muted);font-weight:700;padding:12px 16px;border-bottom:1px solid var(--border);
+  }
+  tbody td{padding:13px 16px;border-bottom:1px solid var(--border);font-size:13.5px;vertical-align:middle}
+  tbody tr:last-child td{border-bottom:0}
+  tbody tr:hover{background:rgba(255,255,255,.02)}
+  .t-main{font-weight:600}
+  .t-sub{color:var(--text-dim);font-size:12px;margin-top:2px}
+  .row-actions{display:flex;gap:4px;justify-content:flex-end}
+
+  .tag{display:inline-flex;align-items:center;gap:6px;padding:3px 10px;border-radius:20px;font-size:11.5px;font-weight:700;border:1px solid transparent}
+  .tag.blue{background:rgba(59,130,246,.14);color:#7fb0ff}
+  .tag.orange{background:var(--accent-soft);color:var(--accent-2)}
+  .tag.gray{background:var(--surface-3);color:var(--text-dim)}
+
+  .empty{text-align:center;padding:54px 20px;color:var(--text-dim)}
+  .empty .big{font-size:46px;margin-bottom:8px;opacity:.5}
+  .empty h3{margin:0 0 6px;color:var(--text);font-weight:700}
+  .empty p{margin:0 auto 18px;max-width:380px;font-size:13.5px}
+
+  /* Dashboard */
+  .stat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:16px;margin-bottom:22px}
+  .stat{padding:18px 18px 16px;display:flex;flex-direction:column;gap:8px}
+  .stat .lbl{color:var(--text-dim);font-size:12.5px;font-weight:600;display:flex;align-items:center;gap:8px}
+  .stat .lbl .ic{width:30px;height:30px;border-radius:9px;display:grid;place-items:center;font-size:15px}
+  .stat .val{font-size:30px;font-weight:800;letter-spacing:-.5px}
+  .stat .foot{font-size:11.5px;color:var(--muted)}
+  .ic-orange{background:var(--accent-soft);color:var(--accent-2)}
+  .ic-blue{background:rgba(59,130,246,.14);color:#7fb0ff}
+  .ic-green{background:rgba(34,197,94,.14);color:#5fe08a}
+  .ic-cyan{background:rgba(6,182,212,.14);color:#4dd6ec}
+
+  .panel-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  @media(max-width:880px){.panel-grid{grid-template-columns:1fr}}
+  .panel-head{display:flex;align-items:center;justify-content:space-between;padding:15px 18px;border-bottom:1px solid var(--border)}
+  .panel-head h3{margin:0;font-size:14.5px;font-weight:700}
+
+  /* Ficha de moto */
+  .detail-head{display:flex;align-items:flex-start;gap:18px;padding:22px;flex-wrap:wrap}
+  .moto-avatar{
+    width:64px;height:64px;border-radius:14px;flex:none;display:grid;place-items:center;font-size:30px;
+    background:linear-gradient(135deg,#1e293b,#0f172a);border:1px solid var(--border);
+  }
+  .detail-head h2{margin:0;font-size:22px;font-weight:800}
+  .spec-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:1px;background:var(--border);border-top:1px solid var(--border)}
+  .spec{background:var(--surface);padding:14px 18px}
+  .spec .k{font-size:11px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);font-weight:700;margin-bottom:4px}
+  .spec .v{font-size:14.5px;font-weight:600}
+  .km-badge{background:var(--accent-soft);color:var(--accent-2);font-weight:800;padding:4px 12px;border-radius:10px;font-size:14px}
+
+  /* ===================== Modal ===================== */
+  #modal-root{position:fixed;inset:0;display:none;z-index:50}
+  #modal-root.open{display:block}
+  .modal-overlay{position:absolute;inset:0;background:rgba(3,7,18,.66);backdrop-filter:blur(3px);display:grid;place-items:center;padding:20px;animation:fade .18s ease}
+  .modal{width:100%;max-width:520px;background:var(--surface);border:1px solid var(--border);border-radius:16px;box-shadow:var(--shadow);max-height:90vh;display:flex;flex-direction:column;animation:pop .2s ease}
+  @keyframes pop{from{transform:scale(.96);opacity:0}to{transform:none;opacity:1}}
+  .modal-head{display:flex;align-items:center;justify-content:space-between;padding:18px 20px;border-bottom:1px solid var(--border)}
+  .modal-head h3{margin:0;font-size:16px;font-weight:700}
+  .modal-body{padding:20px;overflow-y:auto}
+  .modal-foot{display:flex;gap:10px;justify-content:flex-end;padding:16px 20px;border-top:1px solid var(--border)}
+  .icon-btn{background:transparent;border:0;color:var(--muted);font-size:22px;cursor:pointer;line-height:1;padding:2px 6px;border-radius:8px}
+  .icon-btn:hover{background:var(--surface-2);color:var(--text)}
+
+  .form-row{margin-bottom:14px}
+  .form-row.two{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  label.lbl{display:block;font-size:12px;font-weight:600;color:var(--text-dim);margin-bottom:6px}
+  label.lbl .req{color:var(--accent)}
+  .hint{font-size:11.5px;margin-top:5px;color:var(--muted)}
+  .hint.err{color:var(--red)}
+  .input.invalid{border-color:var(--red)}
+
+  /* Toast */
+  #toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%) translateY(20px);opacity:0;
+    background:var(--surface-3);border:1px solid var(--border);color:var(--text);padding:11px 18px;border-radius:12px;
+    font-size:13.5px;font-weight:600;box-shadow:var(--shadow);z-index:80;transition:.25s;pointer-events:none}
+  #toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+  #toast .check{color:var(--green);margin-right:8px}
+
+  ::-webkit-scrollbar{width:10px;height:10px}
+  ::-webkit-scrollbar-thumb{background:#243149;border-radius:10px;border:2px solid transparent;background-clip:padding-box}
+
+  /* ===================== Informe (hoja imprimible) ===================== */
+  .paper{background:#fff;color:#15233f;border-radius:10px;max-width:980px;margin:0 auto;padding:30px 34px;box-shadow:var(--shadow);font-size:13px}
+  .paper-head{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:3px solid #15233f;padding-bottom:14px;margin-bottom:16px}
+  .paper-title{font-size:26px;font-weight:800;letter-spacing:-.5px}
+  .paper-date{color:#555;font-size:12px;margin-top:4px}
+  .paper-cols{display:grid;grid-template-columns:1fr 1.6fr;gap:18px;margin-bottom:18px}
+  .paper-info{display:flex;flex-direction:column;gap:2px;font-size:14px}
+  .paper-tbl{width:100%;border-collapse:collapse;border:1px solid #cbd3e1}
+  .paper-tbl th{background:#eef1f7;padding:7px 10px;font-size:11px;border:1px solid #cbd3e1}
+  .paper-tbl td{padding:7px 10px;border:1px solid #cbd3e1}
+  .paper-tbl td.num{text-align:right;white-space:nowrap}
+  .paper-tbl tfoot td{background:#f6f8fc}
+  .paper-check{width:100%;border-collapse:collapse;margin:6px 0 16px;border:1px solid #cbd3e1}
+  .paper-check th{background:#15233f;color:#fff;padding:6px 8px;font-size:10.5px;text-align:left;border:1px solid #2c3c5c}
+  .paper-check td{padding:5px 8px;border:1px solid #d7dde8;font-size:11px;vertical-align:top}
+  .paper-check tr:nth-child(even) td{background:#f7f9fc}
+  .paper-obs{border:1px solid #cbd3e1;border-radius:6px;padding:10px 12px;margin-top:10px}
+  .paper-obs-h{font-weight:800;font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:#555;margin-bottom:4px}
+
+  @media print{
+    body{background:#fff}
+    .sidebar,.topbar,#topbar-action{display:none !important}
+    .content{margin:0}
+    .view-wrap{padding:0;max-width:none}
+    .view{display:none !important}
+    #view-informe-doc.view{display:block !important}
+    .paper{box-shadow:none;max-width:none;border-radius:0;padding:0}
+    .paper-check th{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  }
+
+  /* ===================== Estado de sincronización ===================== */
+  .btn[disabled]{opacity:.45;cursor:not-allowed}
+  .btn[disabled]:hover{transform:none;background:var(--surface-2);border-color:var(--border)}
+  .sync-status{padding:10px 14px;border-radius:10px;font-size:13px;font-weight:600;border:1px solid var(--border)}
+  .sync-ok{background:rgba(34,197,94,.12);border-color:rgba(34,197,94,.4);color:#6ee7a0}
+  .sync-err{background:rgba(239,68,68,.12);border-color:rgba(239,68,68,.4);color:#fca5a5}
+  .sync-info{background:rgba(59,130,246,.12);border-color:rgba(59,130,246,.4);color:#93c5fd}
+  .sync-warn{background:var(--accent-soft);border-color:rgba(249,115,22,.4);color:var(--accent-2)}
+</style>
+</head>
+<body>
+<div class="app">
+  <!-- ============ SIDEBAR ============ -->
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="logo">&#128295;</div>
+      <div>
+        <h1>Taller Motos</h1>
+        <span>Gestión de servicios</span>
+      </div>
+    </div>
+    <nav class="nav" id="nav">
+      <button class="nav-item" data-view="dashboard"><span class="ic">&#128202;</span> Dashboard</button>
+
+      <div class="nav-group-label">Registro</div>
+      <button class="nav-item" data-view="clientes"><span class="ic">&#128100;</span> Clientes <span class="count" id="cnt-clientes">0</span></button>
+      <button class="nav-item" data-view="motos"><span class="ic">&#127949;</span> Motos <span class="count" id="cnt-motos">0</span></button>
+
+      <div class="nav-group-label">Operación</div>
+      <button class="nav-item" data-view="ot"><span class="ic">&#128203;</span> Órdenes de Trabajo <span class="count" id="cnt-ot">0</span></button>
+      <button class="nav-item" data-view="tareas"><span class="ic">&#9989;</span> Tareas</button>
+      <button class="nav-item" data-view="presupuestos"><span class="ic">&#128181;</span> Presupuestos</button>
+      <button class="nav-item" data-view="informes"><span class="ic">&#128228;</span> Informes</button>
+
+      <div class="nav-group-label">Datos</div>
+      <button class="nav-item" data-view="sync"><span class="ic">&#128259;</span> Sincronización</button>
+    </nav>
+    <div class="sidebar-foot">
+      <button class="nav-item" style="margin-bottom:8px" onclick="openTallerConfig()"><span class="ic">&#9881;</span> Datos del taller</button>
+      <span class="sync-pill" id="sync-pill" style="cursor:pointer" onclick="navigate('sync')"><span class="dot"></span> Solo local (sin sync)</span>
+    </div>
+  </aside>
+
+  <!-- ============ CONTENIDO ============ -->
+  <div class="content">
+    <header class="topbar">
+      <div>
+        <h2 id="view-title">Dashboard</h2>
+        <div class="sub" id="view-sub">Resumen del taller</div>
+      </div>
+      <div class="spacer"></div>
+      <div id="topbar-action"></div>
+    </header>
+
+    <div class="view-wrap">
+      <!-- DASHBOARD -->
+      <section id="view-dashboard" class="view"></section>
+      <!-- CLIENTES -->
+      <section id="view-clientes" class="view"></section>
+      <!-- MOTOS -->
+      <section id="view-motos" class="view"></section>
+      <!-- FICHA MOTO -->
+      <section id="view-moto-detail" class="view"></section>
+      <!-- ÓRDENES DE TRABAJO -->
+      <section id="view-ot" class="view"></section>
+      <section id="view-ot-detail" class="view"></section>
+      <section id="view-tareas" class="view"></section>
+      <!-- PLACEHOLDERS -->
+
+      <section id="view-presupuestos" class="view"></section>
+      <section id="view-informes" class="view"></section>
+      <section id="view-informe-doc" class="view"></section>
+      <section id="view-sync" class="view"></section>
+    </div>
+  </div>
+</div>
+
+<div id="modal-root"></div>
+<div id="toast"></div>
+
+<script>
+/* =========================================================================
+   TALLER MOTOS — App de gestión (single-file)
+   Fase 1: Clientes + Ficha Motos sobre localStorage.
+   La capa Store está abstraída a propósito: en la Fase 2 se enchufa el
+   backend (Google Apps Script web app) como FUENTE DE VERDAD para soporte
+   multi-dispositivo, dejando localStorage como caché/offline. No reescribir
+   los módulos: solo implementar Sync.push()/Sync.pull() y llamar a Store.
+   ========================================================================= */
+
+/* ----------------------------- Utilidades ------------------------------ */
+const $  = (s,el=document)=>el.querySelector(s);
+const $$ = (s,el=document)=>Array.from(el.querySelectorAll(s));
+
+function uid(){
+  return (window.crypto && crypto.randomUUID)
+    ? crypto.randomUUID()
+    : 'id-'+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2,8);
+}
+function esc(s){
+  return String(s==null?'':s).replace(/[&<>"']/g,c=>(
+    {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+function formatCLP(n){ n=Number(n)||0; return '$'+n.toLocaleString('es-CL'); }
+function todayISO(){ return new Date().toISOString().slice(0,10); }
+
+/* RUT chileno: limpieza, validación módulo 11 y formato */
+function cleanRut(r){ return String(r||'').replace(/[^0-9kK]/g,'').toUpperCase(); }
+function validateRut(r){
+  r=cleanRut(r); if(r.length<2) return false;
+  const body=r.slice(0,-1), dv=r.slice(-1);
+  if(!/^\d+$/.test(body)) return false;
+  let sum=0, mul=2;
+  for(let i=body.length-1;i>=0;i--){ sum+=parseInt(body[i],10)*mul; mul=mul===7?2:mul+1; }
+  const res=11-(sum%11);
+  const calc=res===11?'0':res===10?'K':String(res);
+  return calc===dv;
+}
+function formatRut(r){
+  r=cleanRut(r); if(r.length<2) return r;
+  const body=r.slice(0,-1), dv=r.slice(-1);
+  return body.replace(/\B(?=(\d{3})+(?!\d))/g,'.')+'-'+dv;
+}
+
+function toast(msg){
+  const t=$('#toast');
+  t.innerHTML='<span class="check">&#10003;</span>'+esc(msg);
+  t.classList.add('show');
+  clearTimeout(toast._t);
+  toast._t=setTimeout(()=>t.classList.remove('show'),2200);
+}
+
+/* ------------------------------- STORE --------------------------------- */
+const Store = {
+  KEY:'tallerMotos.v1',
+  data:{ clientes:[], motos:[], ots:[], tareas:[], items:[], config:{} },
+
+  load(){
+    try{
+      const raw=localStorage.getItem(this.KEY);
+      if(raw){ this.data=Object.assign({clientes:[],motos:[],ots:[],tareas:[],items:[],config:{}}, JSON.parse(raw)); }
+    }catch(e){ console.warn('Store.load falló, se usa estado vacío',e); }
+    if(!this.data.config) this.data.config={};
+  },
+  config(){ return this.data.config||(this.data.config={}); },
+  setConfig(patch){ this.data.config=Object.assign({}, this.data.config, patch); this.save(); },
+  save(){
+    localStorage.setItem(this.KEY, JSON.stringify(this.data));
+    // Fase 2: Sync.push() — encolar cambios hacia el Apps Script web app.
+  },
+
+  all(col){ return this.data[col]||[]; },
+  get(col,id){ return (this.data[col]||[]).find(x=>x.id===id)||null; },
+  insert(col,obj){
+    obj.id=obj.id||uid(); obj.createdAt=obj.createdAt||Date.now();
+    this.data[col].push(obj); this.save(); return obj;
+  },
+  update(col,id,patch){
+    const x=this.get(col,id); if(!x) return null;
+    Object.assign(x,patch,{updatedAt:Date.now()}); this.save(); return x;
+  },
+  remove(col,id){
+    this.data[col]=this.data[col].filter(x=>x.id!==id); this.save();
+  },
+
+  /* Relaciones */
+  motosDeCliente(clienteId){ return this.all('motos').filter(m=>m.clienteId===clienteId); },
+  otsDeMoto(motoId){ return this.all('ots').filter(o=>o.motoId===motoId); },
+  clienteDeMoto(motoId){ const m=this.get('motos',motoId); return m?this.get('clientes',m.clienteId):null; },
+
+  /* Export / import — útil ya hoy y como respaldo manual */
+  exportJSON(){ return JSON.stringify(this.data,null,2); },
+};
+
+/* Estub de sincronización — se implementa en Fase 2 (Apps Script) */
+const Sync = {
+  enabled:false,
+  endpoint:null, // URL del Apps Script desplegado como web app
+  async push(){ /* TODO Fase 2 */ },
+  async pull(){ /* TODO Fase 2 */ },
+};
+
+/* --------------------------- Estados de OT ----------------------------- */
+const OT_ESTADOS = ['Recibida','En Proceso','Lista','Entregada'];
+
+/* ------------------------------ Router --------------------------------- */
+const TITLES = {
+  dashboard:['Dashboard','Resumen del taller'],
+  clientes:['Clientes','Dueños de las motos'],
+  motos:['Motos','Ficha técnica e historial'],
+  'moto-detail':['Ficha de Moto','Detalle, dueños e historial de mantenciones'],
+  ot:['Órdenes de Trabajo','Servicios por visita'],
+  'ot-detail':['Orden de Trabajo','Detalle y checklist'],
+  tareas:['Tareas pendientes','Avance de las OTs activas'],
+  presupuestos:['Presupuestos','Trabajos, totales y estado de pago'],
+  informes:['Informes al cliente','Ficha de servicio y envío'],
+  'informe-doc':['Informe','Ficha de Servicio para el cliente'],
+  sync:['Sincronización','Respaldo y datos compartidos con Google Sheets'],
+};
+const NAV_FOR = { 'moto-detail':'motos', 'ot-detail':'ot', 'informe-doc':'informes' }; // qué item del menú resaltar
+
+const state = { view:'dashboard', params:{} };
+
+function navigate(view, params={}){
+  state.view=view; state.params=params;
+  const navKey = NAV_FOR[view]||view;
+  $$('.nav-item').forEach(n=>n.classList.toggle('active', n.dataset.view===navKey));
+  $$('.view').forEach(v=>v.classList.remove('active'));
+  const el=document.getElementById('view-'+view);
+  if(el) el.classList.add('active');
+  const t=TITLES[view]||['',''];
+  $('#view-title').textContent=t[0];
+  $('#view-sub').textContent=t[1];
+  $('#topbar-action').innerHTML='';
+  renderView(view);
+  window.scrollTo(0,0);
+}
+
+function renderView(view){
+  switch(view){
+    case 'dashboard':   renderDashboard(); break;
+    case 'clientes':    renderClientes(); break;
+    case 'motos':       renderMotos(); break;
+    case 'moto-detail': renderMotoDetail(state.params.id); break;
+    case 'ot':          renderOT(); break;
+    case 'ot-detail':   renderOTDetail(state.params.id); break;
+    case 'tareas':      renderTareas(); break;
+    case 'presupuestos':renderPresupuestos(); break;
+    case 'informes':    renderInformes(); break;
+    case 'informe-doc': renderInformeDoc(state.params.id); break;
+    case 'sync':        renderSync(); break;
+  }
+  refreshCounts();
+}
+
+function refreshCounts(){
+  $('#cnt-clientes').textContent=Store.all('clientes').length;
+  $('#cnt-motos').textContent=Store.all('motos').length;
+  $('#cnt-ot').textContent=Store.all('ots').length;
+}
+
+/* ------------------------------- Modal --------------------------------- */
+function openModal(title, bodyHTML, footHTML){
+  $('#modal-root').innerHTML = `
+    <div class="modal-overlay" data-close>
+      <div class="modal" role="dialog" aria-modal="true">
+        <div class="modal-head">
+          <h3>${esc(title)}</h3>
+          <button class="icon-btn" data-close aria-label="Cerrar">&times;</button>
+        </div>
+        <div class="modal-body">${bodyHTML}</div>
+        ${footHTML?`<div class="modal-foot">${footHTML}</div>`:''}
+      </div>
+    </div>`;
+  $('#modal-root').classList.add('open');
+}
+function closeModal(){ const r=$('#modal-root'); r.classList.remove('open'); r.innerHTML=''; }
+document.addEventListener('click',e=>{ if(e.target.closest('[data-close]')) closeModal(); });
+document.addEventListener('keydown',e=>{ if(e.key==='Escape') closeModal(); });
+
+function confirmDialog(msg, onYes, yesLabel='Eliminar'){
+  openModal('Confirmar',
+    `<p style="margin:0;color:var(--text-dim);line-height:1.5">${esc(msg)}</p>`,
+    `<button class="btn" data-close>Cancelar</button>
+     <button class="btn primary" id="confirm-yes" style="background:linear-gradient(135deg,var(--red),#b91c1c);box-shadow:none">${esc(yesLabel)}</button>`);
+  $('#confirm-yes').onclick=()=>{ onYes(); closeModal(); };
+}
+
+/* ============================ DASHBOARD ================================= */
+function renderDashboard(){
+  const clientes=Store.all('clientes'), motos=Store.all('motos'), ots=Store.all('ots');
+  const enTaller = motos.filter(m=> Store.otsDeMoto(m.id).some(o=>o.estado && o.estado!=='Entregada')).length;
+
+  // Ingresos del mes (de presupuestos pagados) — 0 hasta tener el módulo
+  const mes = new Date().toISOString().slice(0,7);
+  const ingresosMes = ots.filter(o=>o.estadoPago==='Pagado' && (o.fechaIngreso||'').slice(0,7)===mes)
+                         .reduce((s,o)=>s+totalOT(o.id),0);
+
+  const porEstado = {};
+  OT_ESTADOS.forEach(e=>porEstado[e]=0);
+  ots.forEach(o=>{ if(porEstado[o.estado]!=null) porEstado[o.estado]++; });
+
+  const el=$('#view-dashboard');
+
+  if(clientes.length===0 && motos.length===0){
+    el.innerHTML = `
+      <div class="card empty">
+        <div class="big">&#127949;</div>
+        <h3>Taller vacío por ahora</h3>
+        <p>Empieza registrando un cliente y su moto. También puedes cargar datos de ejemplo para ver cómo se comporta la app.</p>
+        <div style="display:flex;gap:10px;justify-content:center">
+          <button class="btn primary" onclick="navigate('clientes')">&#43; Registrar cliente</button>
+          <button class="btn" id="seed-btn">Cargar datos de ejemplo</button>
+        </div>
+      </div>`;
+    $('#seed-btn').onclick=()=>{ seedDemo(); navigate('dashboard'); toast('Datos de ejemplo cargados'); };
+    return;
+  }
+
+  el.innerHTML = `
+    <div class="stat-grid">
+      <div class="card stat">
+        <div class="lbl"><span class="ic ic-orange">&#127949;</span> Motos en taller</div>
+        <div class="val">${enTaller}</div>
+        <div class="foot">con OT activa (no entregada)</div>
+      </div>
+      <div class="card stat">
+        <div class="lbl"><span class="ic ic-blue">&#128100;</span> Clientes</div>
+        <div class="val">${clientes.length}</div>
+        <div class="foot">${motos.length} moto(s) registradas</div>
+      </div>
+      <div class="card stat">
+        <div class="lbl"><span class="ic ic-cyan">&#128203;</span> OTs abiertas</div>
+        <div class="val">${ots.filter(o=>o.estado!=='Entregada').length}</div>
+        <div class="foot">${ots.length} en total</div>
+      </div>
+      <div class="card stat">
+        <div class="lbl"><span class="ic ic-green">&#128181;</span> Ingresos del mes</div>
+        <div class="val" style="font-size:24px">${formatCLP(ingresosMes)}</div>
+        <div class="foot">OTs pagadas este mes</div>
+      </div>
+    </div>
+
+    <div class="panel-grid">
+      <div class="card">
+        <div class="panel-head"><h3>OTs por estado</h3>
+          <button class="btn sm ghost" onclick="navigate('ot')">Ver todas</button>
+        </div>
+        <div style="padding:8px 0">
+          ${OT_ESTADOS.map(e=>`
+            <div style="display:flex;align-items:center;justify-content:space-between;padding:11px 18px;border-bottom:1px solid var(--border);cursor:pointer" onclick="navigate('ot',{estado:'${e}'})">
+              <span><span class="tag ${ESTADO_CLASS[e]||'gray'}" style="margin-right:8px">&nbsp;</span>${esc(e)}</span>
+              <span style="font-weight:800;font-size:16px">${porEstado[e]}</span>
+            </div>`).join('')}
+        </div>
+      </div>
+      <div class="card">
+        <div class="panel-head">
+          <h3>Últimas motos</h3>
+          <button class="btn sm ghost" onclick="navigate('motos')">Ver todas</button>
+        </div>
+        <div style="padding:6px 0">
+          ${motos.slice(-5).reverse().map(m=>{
+            const c=Store.get('clientes',m.clienteId);
+            return `<div style="display:flex;align-items:center;gap:12px;padding:11px 18px;border-bottom:1px solid var(--border);cursor:pointer" onclick="navigate('moto-detail',{id:'${m.id}'})">
+              <div class="moto-avatar" style="width:38px;height:38px;font-size:18px;border-radius:10px">&#127949;</div>
+              <div style="flex:1">
+                <div class="t-main">${esc(m.marca)} ${esc(m.modelo)}</div>
+                <div class="t-sub">${esc(m.patente||'sin patente')} &middot; ${esc(c?c.nombre:'—')}</div>
+              </div>
+              <span class="km-badge" style="font-size:12px">${Number(m.kmActual||0).toLocaleString('es-CL')} km</span>
+            </div>`;
+          }).join('') || '<div style="padding:18px;color:var(--muted)">Sin motos aún.</div>'}
+        </div>
+      </div>
+    </div>`;
+}
+
+/* ============================ CLIENTES ================================== */
+function renderClientes(){
+  $('#topbar-action').innerHTML=`<button class="btn primary" onclick="openClienteForm()">&#43; Nuevo cliente</button>`;
+  const el=$('#view-clientes');
+  const q=(state.params.q||'').toLowerCase();
+  let lista=Store.all('clientes').slice().sort((a,b)=>a.nombre.localeCompare(b.nombre));
+  if(q) lista=lista.filter(c=>
+    (c.nombre||'').toLowerCase().includes(q) ||
+    (c.rut||'').toLowerCase().includes(q) ||
+    (c.telefono||'').toLowerCase().includes(q) ||
+    (c.email||'').toLowerCase().includes(q));
+
+  el.innerHTML = `
+    <div class="toolbar">
+      <div class="field search">
+        <span class="mag">&#128269;</span>
+        <input class="input" id="cli-search" placeholder="Buscar por nombre, RUT, teléfono…" value="${esc(state.params.q||'')}">
+      </div>
+      <div class="spacer"></div>
+      <span style="color:var(--text-dim);font-size:13px">${lista.length} cliente(s)</span>
+    </div>
+    <div class="card">
+      ${lista.length? `
+      <table>
+        <thead><tr><th>Cliente</th><th>RUT</th><th>Contacto</th><th>Motos</th><th></th></tr></thead>
+        <tbody>
+          ${lista.map(c=>{
+            const nMotos=Store.motosDeCliente(c.id).length;
+            return `<tr>
+              <td><div class="t-main">${esc(c.nombre)}</div></td>
+              <td>${c.rut?esc(formatRut(c.rut)):'<span style="color:var(--muted)">—</span>'}</td>
+              <td>
+                <div>${c.telefono?esc(c.telefono):'<span style="color:var(--muted)">—</span>'}</div>
+                <div class="t-sub">${c.email?esc(c.email):''}</div>
+              </td>
+              <td><span class="tag ${nMotos?'orange':'gray'}">${nMotos}</span></td>
+              <td><div class="row-actions">
+                <button class="btn sm ghost" onclick="navigate('motos',{clienteId:'${c.id}'})">Ver motos</button>
+                <button class="btn sm ghost" onclick="openClienteForm('${c.id}')">Editar</button>
+                <button class="btn sm danger" onclick="eliminarCliente('${c.id}')">Eliminar</button>
+              </div></td>
+            </tr>`;
+          }).join('')}
+        </tbody>
+      </table>` : `
+      <div class="empty">
+        <div class="big">&#128100;</div>
+        <h3>${q?'Sin resultados':'Aún no hay clientes'}</h3>
+        <p>${q?'Prueba con otro término de búsqueda.':'Registra al primer cliente para empezar a crear fichas de moto.'}</p>
+        ${q?'':'<button class="btn primary" onclick="openClienteForm()">&#43; Nuevo cliente</button>'}
+      </div>`}
+    </div>`;
+
+  const s=$('#cli-search');
+  if(s){
+    s.oninput=()=>{ state.params.q=s.value; const pos=s.selectionStart; renderClientes();
+      const ns=$('#cli-search'); ns.focus(); ns.setSelectionRange(pos,pos); };
+  }
+}
+
+function openClienteForm(id){
+  const c = id?Store.get('clientes',id):{};
+  openModal(id?'Editar cliente':'Nuevo cliente', `
+    <form id="cli-form">
+      <div class="form-row">
+        <label class="lbl">Nombre completo <span class="req">*</span></label>
+        <input class="input" name="nombre" value="${esc(c.nombre||'')}" required autofocus>
+      </div>
+      <div class="form-row">
+        <label class="lbl">RUT</label>
+        <input class="input" name="rut" value="${esc(c.rut?formatRut(c.rut):'')}" placeholder="12.345.678-9">
+        <div class="hint" id="rut-hint">Se valida el dígito verificador (módulo 11).</div>
+      </div>
+      <div class="form-row two">
+        <div>
+          <label class="lbl">Teléfono</label>
+          <input class="input" name="telefono" value="${esc(c.telefono||'')}" placeholder="+56 9 …">
+        </div>
+        <div>
+          <label class="lbl">Email</label>
+          <input class="input" name="email" type="email" value="${esc(c.email||'')}" placeholder="cliente@correo.cl">
+        </div>
+      </div>
+    </form>`,
+    `<button class="btn" data-close>Cancelar</button>
+     <button class="btn primary" id="cli-save">Guardar</button>`);
+
+  const form=$('#cli-form');
+  const save=()=>{
+    const fd=new FormData(form);
+    const nombre=(fd.get('nombre')||'').trim();
+    const rutRaw=(fd.get('rut')||'').trim();
+    if(!nombre){ toast('El nombre es obligatorio'); return; }
+    if(rutRaw && !validateRut(rutRaw)){
+      const h=$('#rut-hint'); h.textContent='RUT inválido: revisa el dígito verificador.'; h.classList.add('err');
+      form.rut.classList.add('invalid'); return;
+    }
+    const payload={ nombre, rut:rutRaw?cleanRut(rutRaw):'', telefono:(fd.get('telefono')||'').trim(), email:(fd.get('email')||'').trim() };
+    if(id) Store.update('clientes',id,payload); else Store.insert('clientes',payload);
+    closeModal(); renderView(state.view); toast(id?'Cliente actualizado':'Cliente creado');
+  };
+  $('#cli-save').onclick=save;
+  form.onsubmit=e=>{ e.preventDefault(); save(); };
+}
+
+function eliminarCliente(id){
+  const c=Store.get('clientes',id); if(!c) return;
+  const nMotos=Store.motosDeCliente(id).length;
+  const extra=nMotos?` Tiene ${nMotos} moto(s) asociada(s) que también se eliminarán.`:'';
+  confirmDialog(`¿Eliminar a "${c.nombre}"?${extra} Esta acción no se puede deshacer.`, ()=>{
+    Store.motosDeCliente(id).forEach(m=>Store.remove('motos',m.id));
+    Store.remove('clientes',id);
+    renderView(state.view); toast('Cliente eliminado');
+  });
+}
+
+/* ============================== MOTOS =================================== */
+function renderMotos(){
+  $('#topbar-action').innerHTML=`<button class="btn primary" onclick="openMotoForm()">&#43; Nueva moto</button>`;
+  const el=$('#view-motos');
+  const clientes=Store.all('clientes');
+  const fCliente=state.params.clienteId||'';
+  let lista=Store.all('motos').slice().sort((a,b)=>(a.marca+a.modelo).localeCompare(b.marca+b.modelo));
+  if(fCliente) lista=lista.filter(m=>m.clienteId===fCliente);
+
+  if(clientes.length===0){
+    el.innerHTML=`<div class="card empty">
+      <div class="big">&#127949;</div>
+      <h3>Primero registra un cliente</h3>
+      <p>Cada moto está vinculada a su dueño, así que necesitas al menos un cliente antes de crear una ficha.</p>
+      <button class="btn primary" onclick="navigate('clientes')">Ir a Clientes</button>
+    </div>`;
+    return;
+  }
+
+  el.innerHTML=`
+    <div class="toolbar">
+      <div class="field" style="min-width:230px">
+        <select class="select" id="moto-filter">
+          <option value="">Todos los clientes</option>
+          ${clientes.slice().sort((a,b)=>a.nombre.localeCompare(b.nombre)).map(c=>
+            `<option value="${c.id}" ${c.id===fCliente?'selected':''}>${esc(c.nombre)}</option>`).join('')}
+        </select>
+      </div>
+      <div class="spacer"></div>
+      <span style="color:var(--text-dim);font-size:13px">${lista.length} moto(s)</span>
+    </div>
+    <div class="card">
+      ${lista.length?`
+      <table>
+        <thead><tr><th>Moto</th><th>Patente</th><th>Año</th><th>Dueño</th><th>KM</th><th></th></tr></thead>
+        <tbody>
+          ${lista.map(m=>{
+            const c=Store.get('clientes',m.clienteId);
+            return `<tr style="cursor:pointer" onclick="navigate('moto-detail',{id:'${m.id}'})">
+              <td>
+                <div class="t-main">${esc(m.marca)} ${esc(m.modelo)}</div>
+                <div class="t-sub">${esc(m.color||'')}</div>
+              </td>
+              <td>${m.patente?`<span class="tag gray" style="font-family:ui-monospace,monospace">${esc(m.patente)}</span>`:'<span style="color:var(--muted)">—</span>'}</td>
+              <td>${esc(m.anio||'—')}</td>
+              <td>${esc(c?c.nombre:'—')}</td>
+              <td><span class="km-badge" style="font-size:12px">${Number(m.kmActual||0).toLocaleString('es-CL')}</span></td>
+              <td onclick="event.stopPropagation()"><div class="row-actions">
+                <button class="btn sm ghost" onclick="navigate('moto-detail',{id:'${m.id}'})">Ficha</button>
+                <button class="btn sm ghost" onclick="openMotoForm('${m.id}')">Editar</button>
+                <button class="btn sm danger" onclick="eliminarMoto('${m.id}')">Eliminar</button>
+              </div></td>
+            </tr>`;
+          }).join('')}
+        </tbody>
+      </table>`:`
+      <div class="empty">
+        <div class="big">&#127949;</div>
+        <h3>${fCliente?'Este cliente no tiene motos':'Aún no hay motos'}</h3>
+        <p>Registra la primera ficha de moto para llevar su historial de servicios.</p>
+        <button class="btn primary" onclick="openMotoForm(${fCliente?`null,'${fCliente}'`:''})">&#43; Nueva moto</button>
+      </div>`}
+    </div>`;
+
+  const f=$('#moto-filter');
+  if(f) f.onchange=()=>{ state.params.clienteId=f.value; renderMotos(); };
+}
+
+function openMotoForm(id, clientePre){
+  const m = id?Store.get('motos',id):{};
+  const clientes=Store.all('clientes').slice().sort((a,b)=>a.nombre.localeCompare(b.nombre));
+  const selCli = m.clienteId || clientePre || '';
+  openModal(id?'Editar moto':'Nueva moto', `
+    <form id="moto-form">
+      <div class="form-row">
+        <label class="lbl">Cliente / dueño <span class="req">*</span></label>
+        <select class="select" name="clienteId" required>
+          <option value="">— Seleccionar cliente —</option>
+          ${clientes.map(c=>`<option value="${c.id}" ${c.id===selCli?'selected':''}>${esc(c.nombre)}</option>`).join('')}
+        </select>
+      </div>
+      <div class="form-row two">
+        <div><label class="lbl">Marca <span class="req">*</span></label>
+          <input class="input" name="marca" value="${esc(m.marca||'')}" placeholder="Honda, Yamaha…" required></div>
+        <div><label class="lbl">Modelo <span class="req">*</span></label>
+          <input class="input" name="modelo" value="${esc(m.modelo||'')}" placeholder="CB 190R" required></div>
+      </div>
+      <div class="form-row two">
+        <div><label class="lbl">Año</label>
+          <input class="input" name="anio" type="number" min="1950" max="2100" value="${esc(m.anio||'')}" placeholder="2022"></div>
+        <div><label class="lbl">Patente</label>
+          <input class="input" name="patente" value="${esc(m.patente||'')}" placeholder="ABCD12" style="text-transform:uppercase"></div>
+      </div>
+      <div class="form-row two">
+        <div><label class="lbl">Color</label>
+          <input class="input" name="color" value="${esc(m.color||'')}" placeholder="Rojo"></div>
+        <div><label class="lbl">KM actual</label>
+          <input class="input" name="kmActual" type="number" min="0" value="${esc(m.kmActual||'')}" placeholder="0"></div>
+      </div>
+      <div class="form-row two">
+        <div><label class="lbl">N° motor</label>
+          <input class="input" name="numeroMotor" value="${esc(m.numeroMotor||'')}"></div>
+        <div><label class="lbl">N° chasis</label>
+          <input class="input" name="numeroChasis" value="${esc(m.numeroChasis||'')}"></div>
+      </div>
+    </form>`,
+    `<button class="btn" data-close>Cancelar</button>
+     <button class="btn primary" id="moto-save">Guardar</button>`);
+
+  const form=$('#moto-form');
+  const save=()=>{
+    const fd=new FormData(form);
+    const clienteId=fd.get('clienteId');
+    const marca=(fd.get('marca')||'').trim();
+    const modelo=(fd.get('modelo')||'').trim();
+    if(!clienteId){ toast('Selecciona el cliente'); return; }
+    if(!marca||!modelo){ toast('Marca y modelo son obligatorios'); return; }
+    const payload={
+      clienteId, marca, modelo,
+      anio:(fd.get('anio')||'').trim(),
+      patente:(fd.get('patente')||'').trim().toUpperCase(),
+      color:(fd.get('color')||'').trim(),
+      kmActual:Number(fd.get('kmActual'))||0,
+      numeroMotor:(fd.get('numeroMotor')||'').trim(),
+      numeroChasis:(fd.get('numeroChasis')||'').trim(),
+    };
+    if(id){
+      const prevOwner=Store.get('motos',id).clienteId;
+      delete payload.clienteId;                       // el dueño se cambia con la transferencia
+      Store.update('motos',id,payload);
+      if(prevOwner!==clienteId) setOwner(id, clienteId); // si cambió en el form, queda registrado como transferencia
+    } else {
+      const nueva=Store.insert('motos',payload);
+      nueva.historialDuenos=[{clienteId, desde:todayISO(), hasta:null}];
+      Store.save();
+    }
+    closeModal(); renderView(state.view); toast(id?'Moto actualizada':'Moto registrada');
+  };
+  $('#moto-save').onclick=save;
+  form.onsubmit=e=>{ e.preventDefault(); save(); };
+}
+
+function eliminarMoto(id){
+  const m=Store.get('motos',id); if(!m) return;
+  confirmDialog(`¿Eliminar la moto "${m.marca} ${m.modelo}"? Se borrará su ficha e historial.`, ()=>{
+    Store.remove('motos',id);
+    if(state.view==='moto-detail') navigate('motos'); else renderView(state.view);
+    toast('Moto eliminada');
+  });
+}
+
+/* ----------------------- Ficha (detalle) de moto ----------------------- */
+function renderMotoDetail(id){
+  const m=Store.get('motos',id);
+  const el=$('#view-moto-detail');
+  if(!m){ el.innerHTML=`<div class="card empty"><h3>Moto no encontrada</h3><button class="btn" onclick="navigate('motos')">Volver</button></div>`; return; }
+  const c=Store.get('clientes',m.clienteId);
+  const ots=Store.otsDeMoto(m.id).slice().sort((a,b)=>(b.fechaIngreso||'').localeCompare(a.fechaIngreso||''));
+
+  const duenos = (Array.isArray(m.historialDuenos) && m.historialDuenos.length)
+    ? m.historialDuenos
+    : (m.clienteId?[{clienteId:m.clienteId, desde:(m.createdAt?new Date(m.createdAt).toISOString().slice(0,10):''), hasta:null}]:[]);
+
+  $('#topbar-action').innerHTML=`
+    <button class="btn ghost" onclick="navigate('motos')">&#8592; Volver</button>
+    <button class="btn" onclick="openTransferModal('${m.id}')">Transferir</button>
+    <button class="btn" onclick="openMotoForm('${m.id}')">Editar</button>
+    <button class="btn primary" onclick="openOTForm(null,'${m.id}')">&#43; Nueva OT</button>`;
+
+  el.innerHTML=`
+    <div class="card" style="margin-bottom:16px">
+      <div class="detail-head">
+        <div class="moto-avatar">&#127949;</div>
+        <div style="flex:1;min-width:200px">
+          <h2>${esc(m.marca)} ${esc(m.modelo)}</h2>
+          <div style="color:var(--text-dim);margin-top:4px">
+            ${m.patente?`<span class="tag gray" style="font-family:ui-monospace,monospace">${esc(m.patente)}</span> `:''}
+            ${m.anio?`&middot; ${esc(m.anio)} `:''}${m.color?`&middot; ${esc(m.color)}`:''}
+          </div>
+          <div style="margin-top:10px;color:var(--text-dim);font-size:13px">
+            Dueño actual: <strong style="color:var(--text)">${esc(c?c.nombre:'—')}</strong>
+            ${c&&c.telefono?` &middot; ${esc(c.telefono)}`:''}
+          </div>
+        </div>
+        <div style="text-align:right">
+          <div style="color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.07em;font-weight:700">KM actual</div>
+          <div class="km-badge" style="font-size:20px;margin-top:4px;display:inline-block">${Number(m.kmActual||0).toLocaleString('es-CL')} km</div>
+        </div>
+      </div>
+      <div class="spec-grid">
+        <div class="spec"><div class="k">N° motor</div><div class="v">${esc(m.numeroMotor||'—')}</div></div>
+        <div class="spec"><div class="k">N° chasis</div><div class="v">${esc(m.numeroChasis||'—')}</div></div>
+        <div class="spec"><div class="k">Año</div><div class="v">${esc(m.anio||'—')}</div></div>
+        <div class="spec"><div class="k">Color</div><div class="v">${esc(m.color||'—')}</div></div>
+      </div>
+    </div>
+
+    <div class="card" style="margin-bottom:16px">
+      <div class="panel-head">
+        <h3>Dueños</h3>
+        <button class="btn sm" onclick="openTransferModal('${m.id}')">Transferir / vender</button>
+      </div>
+      <div style="padding:6px 0">
+        ${duenos.slice().reverse().map(h=>{
+          const cl=Store.get('clientes',h.clienteId);
+          const actual=h.hasta===null||h.hasta===undefined;
+          return `<div style="display:flex;align-items:center;gap:12px;padding:11px 18px;border-bottom:1px solid var(--border)">
+            <div class="moto-avatar" style="width:34px;height:34px;font-size:14px;border-radius:9px">${esc((cl?cl.nombre:'?').slice(0,1).toUpperCase())}</div>
+            <div style="flex:1">
+              <div class="t-main">${esc(cl?cl.nombre:'Cliente eliminado')} ${actual?'<span class="tag orange" style="margin-left:6px">Actual</span>':''}</div>
+              <div class="t-sub">${esc(h.desde||'—')} ${actual?'&rarr; hoy':(h.hasta?'&rarr; '+esc(h.hasta):'')}</div>
+            </div>
+          </div>`;
+        }).join('')}
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="panel-head">
+        <h3>Historial de mantenciones</h3>
+        <span class="tag gray">${ots.length} OT</span>
+      </div>
+      ${ots.length? ots.map(o=>{
+        const p=progresoOT(o.id);
+        const oc=Store.get('clientes',o.clienteId);
+        return `<div style="padding:14px 18px;border-bottom:1px solid var(--border);cursor:pointer" onclick="navigate('ot-detail',{id:'${o.id}'})">
+          <div style="display:flex;justify-content:space-between;align-items:center">
+            <div><strong style="font-family:ui-monospace,monospace">${esc(o.folio||'')}</strong> &middot; ${esc(o.tipo||'Servicio')}</div>
+            <span class="tag ${ESTADO_CLASS[o.estado]||'gray'}">${esc(o.estado||'')}</span>
+          </div>
+          <div class="t-sub">${esc(o.fechaIngreso||'')} &middot; ${Number(o.kmIngreso||0).toLocaleString('es-CL')} km &middot; ${p.hechas}/${p.total} tareas${o.mecanico?' &middot; '+esc(o.mecanico):''}${oc&&oc.id!==m.clienteId?' &middot; dueño de entonces: '+esc(oc.nombre):''}</div>
+        </div>`;
+      }).join('') : `
+        <div class="empty" style="padding:40px 20px">
+          <div class="big" style="font-size:38px">&#128203;</div>
+          <h3>Sin mantenciones registradas</h3>
+          <p>Crea una orden de trabajo para esta moto y aquí quedará todo su historial, sin importar cuántas veces cambie de dueño.</p>
+          <button class="btn primary" onclick="openOTForm(null,'${m.id}')">&#43; Nueva OT</button>
+        </div>`}
+    </div>`;
+}
+
+/* ========================== PLACEHOLDERS =============================== */
+function renderPlaceholder(view){
+  const info={
+    ot:['&#128203;','Órdenes de Trabajo','Aquí registrarás cada visita: tipo de servicio, KM de ingreso, fechas, estado, mecánico responsable, descripción del problema y link a fotos.'],
+    tareas:['&#9989;','Tareas por OT','Checklist editable por orden: mantención preventiva con tareas predefinidas y reparaciones con tareas libres, cada una con check y comentario.'],
+    presupuestos:['&#128181;','Presupuestos','Ítems de mano de obra y repuestos con totales y estado de pago, asociados a cada OT.'],
+    informes:['&#128228;','Informes al cliente','Resumen de la OT (tareas, comentarios, KM, fotos) con envío por link de WhatsApp pre-armado.'],
+  }[view];
+  document.getElementById('view-'+view).innerHTML=`
+    <div class="card empty">
+      <div class="big">${info[0]}</div>
+      <h3>${info[1]}</h3>
+      <p>${info[2]}</p>
+      <span class="tag orange">Próxima fase</span>
+    </div>`;
+}
+
+/* ===================== TAREAS / DUEÑOS / OT (helpers) ================== */
+/* Checklist estándar de mantención (descripción + indicación = método estándar).
+   Basado en la Ficha de Servicio real del taller. */
+const TAREAS_MANT_PREVENTIVA = [
+  {d:'Escáner completo', i:'Revisión de todos los módulos'},
+  {d:'Calibración de ralentí', i:'Reinicio de adaptación'},
+  {d:'Cambio de aceite de motor', i:'Según especificación (ej: 10W50, 3,2 lts)'},
+  {d:'Cambio de filtro de aceite', i:'Filtro según modelo'},
+  {d:'Servicio a la cadena', i:'Limpieza, medición, ajuste y engrase'},
+  {d:'Revisión / cambio de filtro de aire', i:'Inspeccionar estado / cambiar'},
+  {d:'Revisión / cambio de bujías', i:'Revisión o cambio'},
+  {d:'Revisión de nivel de refrigerante', i:'Rellenar faltante, revisar estado o cambiar'},
+  {d:'Revisión de fuga en tapas de válvulas', i:'Inspección de empaquetaduras'},
+  {d:'Revisión de líneas de refrigerante', i:'Inspección por posibles fugas'},
+  {d:'Revisión de cálipers y pastillas', i:'Limpieza y engrase, pulido de pastillas'},
+  {d:'Revisión de pastillas', i:'Medición de desgaste (% útil)'},
+  {d:'Revisión de discos de freno', i:'Medición de desgaste (mm)'},
+  {d:'Revisión / cambio de líquido de frenos', i:'Medición de continuidad / cambio DOT4'},
+  {d:'Revisión / cambio de líquido de embrague', i:'Medición de continuidad / cambio DOT4'},
+  {d:'Revisión de líneas de frenos y embrague', i:'Por posibles fugas'},
+  {d:'Revisión de líneas de combustible', i:'Por posibles fugas'},
+  {d:'Revisión de suspensiones', i:'Fugas de retenes, guardapolvos, ruidos anormales'},
+  {d:'Revisión de neumáticos (presión)', i:'Presión según especificación (ej: 33 del / 36 tras psi)'},
+  {d:'Neumático: vida útil delantero', i:'Medición de desgaste (%)'},
+  {d:'Neumático: vida útil trasero', i:'Medición de desgaste (%)'},
+  {d:'Reapriete de radios sueltos', i:'Reapriete para evitar caída (no es ajuste)'},
+  {d:'Revisión de rodamientos', i:'Correcto deslizamiento y lubricado'},
+  {d:'Movimiento libre de caballete central y lateral', i:'Recorrido libre y firmeza de resortes'},
+  {d:'Revisión de carga', i:'Carga entre 13,5v y 15v'},
+  {d:'Revisión de batería', i:'Recargar, revisar fuerza de arranque y vida útil'},
+  {d:'Revisión de luces, interruptores y tomacorriente', i:'Funcionamiento y correcto accionamiento'},
+  {d:'Lubricación de partes móviles', i:'Piolas, manillas y pedales'},
+  {d:'Reset de parámetros adaptativos', i:'Acelerador, mezcla, ralentí, sensor de cambios'},
+  {d:'Prueba de electroventilador', i:'Accionamiento con escáner'},
+  {d:'Prueba de supresión de arranque', i:'Caballete, cambios, embrague'},
+  {d:'Reset de SERVICE', i:'Reinicio del recordatorio en pantalla'},
+];
+const ESTADO_CLASS = {'Recibida':'blue','En Proceso':'orange','Lista':'orange','Entregada':'gray'};
+const PAGO_CLASS = {'Pendiente':'orange','Parcial':'blue','Pagado':'gray'};
+
+/* --- Presupuesto / cobro --- */
+function itemsDeOT(otId){ return Store.all('items').filter(x=>x.otId===otId); }
+function totalOT(otId){ return itemsDeOT(otId).reduce((s,x)=>s+(Number(x.monto)||0),0); }
+function estadoPagoOT(o){ return o.estadoPago||'Pendiente'; }
+
+/* --- Datos del taller (encabezado del informe) --- */
+function taller(){ const c=Store.config(); return {nombre:c.nombre||'Ficha de Servicio', mecanico:c.mecanico||'', telefono:c.telefono||''}; }
+function telWa(tel){ return String(tel||'').replace(/[^0-9]/g,''); } // solo dígitos para wa.me
+
+function nextFolio(){
+  const nums=Store.all('ots').map(o=>{ const mm=/(\d+)/.exec(o.folio||''); return mm?parseInt(mm[1],10):0; });
+  return 'OT-'+String((nums.length?Math.max(...nums):0)+1).padStart(4,'0');
+}
+function tareasDeOT(otId){ return Store.all('tareas').filter(t=>t.otId===otId); }
+function progresoOT(otId){
+  const ts=tareasDeOT(otId), hechas=ts.filter(t=>t.hecha).length;
+  return {hechas, total:ts.length, pct: ts.length?Math.round(hechas/ts.length*100):0};
+}
+
+/* --- Dueños: transferencia conservando el historial de la moto --- */
+function ensureOwnerHistory(m){
+  if(!Array.isArray(m.historialDuenos)){
+    m.historialDuenos = m.clienteId
+      ? [{clienteId:m.clienteId, desde:(m.createdAt?new Date(m.createdAt).toISOString().slice(0,10):todayISO()), hasta:null}]
+      : [];
+  }
+  return m.historialDuenos;
+}
+function setOwner(motoId, newClienteId){
+  const m=Store.get('motos',motoId); if(!m||!newClienteId) return;
+  ensureOwnerHistory(m);
+  if(m.clienteId===newClienteId){ Store.save(); return; }
+  const f=todayISO();
+  const cur=m.historialDuenos.find(h=>h.hasta===null||h.hasta===undefined);
+  if(cur) cur.hasta=f;
+  m.historialDuenos.push({clienteId:newClienteId, desde:f, hasta:null});
+  m.clienteId=newClienteId;
+  Store.save();
+}
+function openTransferModal(motoId){
+  const m=Store.get('motos',motoId); if(!m) return;
+  const actual=Store.get('clientes',m.clienteId);
+  const clientes=Store.all('clientes').filter(c=>c.id!==m.clienteId).sort((a,b)=>a.nombre.localeCompare(b.nombre));
+  if(!clientes.length){
+    openModal('Transferir moto',
+      `<p style="margin:0;color:var(--text-dim);line-height:1.5">No hay otro cliente al que transferir. Crea primero el nuevo dueño en <strong>Clientes</strong> y vuelve a intentarlo.</p>`,
+      `<button class="btn" data-close>Cerrar</button>`);
+    return;
+  }
+  openModal('Transferir / vender moto', `
+    <p style="margin:0 0 14px;color:var(--text-dim);font-size:13px;line-height:1.5">
+      Dueño actual: <strong style="color:var(--text)">${esc(actual?actual.nombre:'—')}</strong>.<br>
+      La moto conserva todo su historial de mantenciones; solo cambia el dueño a partir de hoy.
+    </p>
+    <form id="transfer-form">
+      <div class="form-row">
+        <label class="lbl">Nuevo dueño <span class="req">*</span></label>
+        <select class="select" name="nuevo" required>
+          <option value="">— Seleccionar cliente —</option>
+          ${clientes.map(c=>`<option value="${c.id}">${esc(c.nombre)}</option>`).join('')}
+        </select>
+      </div>
+    </form>`,
+    `<button class="btn" data-close>Cancelar</button>
+     <button class="btn primary" id="transfer-save">Transferir</button>`);
+  $('#transfer-save').onclick=()=>{
+    const nuevo=$('#transfer-form').nuevo.value;
+    if(!nuevo){ toast('Selecciona el nuevo dueño'); return; }
+    setOwner(motoId, nuevo);
+    closeModal(); renderMotoDetail(motoId); toast('Moto transferida');
+  };
+}
+
+/* ====================== ÓRDENES DE TRABAJO ============================= */
+function renderOT(){
+  $('#topbar-action').innerHTML=`<button class="btn primary" onclick="openOTForm()">&#43; Nueva OT</button>`;
+  const el=$('#view-ot');
+  if(Store.all('motos').length===0){
+    el.innerHTML=`<div class="card empty"><div class="big">&#128203;</div><h3>Primero registra una moto</h3>
+      <p>Las órdenes de trabajo se crean sobre una moto registrada.</p>
+      <button class="btn primary" onclick="navigate('motos')">Ir a Motos</button></div>`;
+    return;
+  }
+  const fEstado=state.params.estado||'';
+  let ots=Store.all('ots').slice().sort((a,b)=>(b.fechaIngreso||'').localeCompare(a.fechaIngreso||'')||((b.createdAt||0)-(a.createdAt||0)));
+  if(fEstado) ots=ots.filter(o=>o.estado===fEstado);
+  el.innerHTML=`
+    <div class="toolbar">
+      <div class="field" style="min-width:200px">
+        <select class="select" id="ot-filter">
+          <option value="">Todos los estados</option>
+          ${OT_ESTADOS.map(e=>`<option value="${e}" ${e===fEstado?'selected':''}>${e}</option>`).join('')}
+        </select>
+      </div>
+      <div class="spacer"></div>
+      <span style="color:var(--text-dim);font-size:13px">${ots.length} OT</span>
+    </div>
+    <div class="card">
+      ${ots.length?`
+      <table>
+        <thead><tr><th>Folio</th><th>Moto / Dueño</th><th>Tipo</th><th>Ingreso</th><th>Estado</th><th>Avance</th><th></th></tr></thead>
+        <tbody>
+          ${ots.map(o=>{
+            const m=Store.get('motos',o.motoId), c=Store.get('clientes',o.clienteId), p=progresoOT(o.id);
+            return `<tr style="cursor:pointer" onclick="navigate('ot-detail',{id:'${o.id}'})">
+              <td><span class="t-main" style="font-family:ui-monospace,monospace">${esc(o.folio||'')}</span></td>
+              <td><div class="t-main">${m?esc(m.marca+' '+m.modelo):'—'}</div><div class="t-sub">${esc(c?c.nombre:'—')}</div></td>
+              <td>${esc(o.tipo||'')}</td>
+              <td>${esc(o.fechaIngreso||'')}<div class="t-sub">${Number(o.kmIngreso||0).toLocaleString('es-CL')} km</div></td>
+              <td><span class="tag ${ESTADO_CLASS[o.estado]||'gray'}">${esc(o.estado||'')}</span></td>
+              <td style="min-width:92px">${p.total?`<div style="font-size:11px;color:var(--text-dim);margin-bottom:3px">${p.hechas}/${p.total}</div><div style="height:6px;background:var(--surface-3);border-radius:20px;overflow:hidden"><div style="height:100%;width:${p.pct}%;background:var(--accent)"></div></div>`:'<span style="color:var(--muted);font-size:12px">—</span>'}</td>
+              <td onclick="event.stopPropagation()"><div class="row-actions">
+                <button class="btn sm ghost" onclick="navigate('ot-detail',{id:'${o.id}'})">Abrir</button>
+                <button class="btn sm danger" onclick="eliminarOT('${o.id}')">Eliminar</button>
+              </div></td>
+            </tr>`;
+          }).join('')}
+        </tbody>
+      </table>`:`
+      <div class="empty"><div class="big">&#128203;</div><h3>${fEstado?'Sin OTs en este estado':'Aún no hay órdenes de trabajo'}</h3>
+        <p>Crea la primera OT cuando ingrese una moto al taller.</p>
+        <button class="btn primary" onclick="openOTForm()">&#43; Nueva OT</button></div>`}
+    </div>`;
+  const f=$('#ot-filter'); if(f) f.onchange=()=>{ state.params.estado=f.value; renderOT(); };
+}
+
+function openOTForm(id, motoPre){
+  const o=id?Store.get('ots',id):{};
+  const motos=Store.all('motos').slice().sort((a,b)=>(a.marca+a.modelo).localeCompare(b.marca+b.modelo));
+  const selMoto=o.motoId||motoPre||'';
+  const tipos=['Mantención Preventiva','Reparación','Diagnóstico'];
+  const mecanicos=[...new Set(Store.all('ots').map(x=>x.mecanico).filter(Boolean))];
+  openModal(id?('Editar '+(o.folio||'OT')):'Nueva orden de trabajo', `
+    <form id="ot-form">
+      <div class="form-row">
+        <label class="lbl">Moto <span class="req">*</span></label>
+        <select class="select" name="motoId" ${id?'disabled':'required'}>
+          <option value="">— Seleccionar moto —</option>
+          ${motos.map(m=>{const c=Store.get('clientes',m.clienteId);return `<option value="${m.id}" ${m.id===selMoto?'selected':''}>${esc(m.marca+' '+m.modelo)} — ${esc(m.patente||'s/patente')} (${esc(c?c.nombre:'—')})</option>`;}).join('')}
+        </select>
+      </div>
+      <div class="form-row two">
+        <div><label class="lbl">Tipo de servicio <span class="req">*</span></label>
+          <select class="select" name="tipo" required>
+            ${tipos.map(t=>`<option value="${t}" ${o.tipo===t?'selected':''}>${t}</option>`).join('')}
+          </select></div>
+        <div><label class="lbl">Estado</label>
+          <select class="select" name="estado">
+            ${OT_ESTADOS.map(e=>`<option value="${e}" ${(o.estado||'Recibida')===e?'selected':''}>${e}</option>`).join('')}
+          </select></div>
+      </div>
+      <div class="form-row two">
+        <div><label class="lbl">KM de ingreso</label>
+          <input class="input" name="kmIngreso" type="number" min="0" value="${esc(o.kmIngreso||'')}"></div>
+        <div><label class="lbl">Mecánico responsable</label>
+          <input class="input" name="mecanico" list="mec-list" value="${esc(o.mecanico||'')}" placeholder="Nombre">
+          <datalist id="mec-list">${mecanicos.map(x=>`<option value="${esc(x)}"></option>`).join('')}</datalist></div>
+      </div>
+      <div class="form-row two">
+        <div><label class="lbl">Fecha de ingreso</label>
+          <input class="input" name="fechaIngreso" type="date" value="${esc(o.fechaIngreso||todayISO())}"></div>
+        <div><label class="lbl">Entrega estimada</label>
+          <input class="input" name="fechaEntrega" type="date" value="${esc(o.fechaEntrega||'')}"></div>
+      </div>
+      <div class="form-row">
+        <label class="lbl">Descripción del problema / trabajo</label>
+        <textarea class="input" name="descripcion" rows="3" style="resize:vertical">${esc(o.descripcion||'')}</textarea>
+      </div>
+      <div class="form-row">
+        <label class="lbl">Observaciones (recomendaciones para el cliente / próximo servicio)</label>
+        <textarea class="input" name="observaciones" rows="2" style="resize:vertical">${esc(o.observaciones||'')}</textarea>
+      </div>
+      <div class="form-row">
+        <label class="lbl">Link a fotos (Google Photos / Drive)</label>
+        <input class="input" name="linkFotos" value="${esc(o.linkFotos||'')}" placeholder="https://...">
+      </div>
+      ${id?'':'<div class="hint">Si eliges <strong>Mantención Preventiva</strong>, se crea automáticamente el checklist estándar (editable).</div>'}
+    </form>`,
+    `<button class="btn" data-close>Cancelar</button>
+     <button class="btn primary" id="ot-save">Guardar</button>`);
+
+  const form=$('#ot-form');
+  if(!id){
+    const motoSel=form.motoId, kmInp=form.kmIngreso;
+    const setKm=()=>{ const m=Store.get('motos',motoSel.value); if(m && !kmInp.value) kmInp.value=m.kmActual||''; };
+    motoSel.onchange=setKm; setKm();
+  }
+  const save=()=>{
+    const fd=new FormData(form);
+    const motoId=id?o.motoId:fd.get('motoId');
+    if(!motoId){ toast('Selecciona la moto'); return; }
+    const moto=Store.get('motos',motoId);
+    const payload={
+      motoId,
+      clienteId: id? o.clienteId : (moto?moto.clienteId:''),
+      tipo: fd.get('tipo'),
+      estado: fd.get('estado')||'Recibida',
+      kmIngreso: Number(fd.get('kmIngreso'))||0,
+      mecanico:(fd.get('mecanico')||'').trim(),
+      fechaIngreso: fd.get('fechaIngreso')||todayISO(),
+      fechaEntrega: fd.get('fechaEntrega')||'',
+      descripcion:(fd.get('descripcion')||'').trim(),
+      observaciones:(fd.get('observaciones')||'').trim(),
+      linkFotos:(fd.get('linkFotos')||'').trim(),
+    };
+    let otId;
+    if(id){ Store.update('ots',id,payload); otId=id; }
+    else {
+      payload.folio=nextFolio();
+      otId=Store.insert('ots',payload).id;
+      if(payload.tipo==='Mantención Preventiva'){
+        TAREAS_MANT_PREVENTIVA.forEach(t=>Store.insert('tareas',{otId,descripcion:t.d,indicacion:t.i,hecha:false,comentario:''}));
+      }
+    }
+    if(moto && payload.kmIngreso>(moto.kmActual||0)){ moto.kmActual=payload.kmIngreso; Store.save(); }
+    closeModal();
+    if(!id) navigate('ot-detail',{id:otId}); else renderView(state.view);
+    toast(id?'OT actualizada':'OT creada');
+  };
+  $('#ot-save').onclick=save;
+  form.onsubmit=e=>{ e.preventDefault(); save(); };
+}
+
+function eliminarOT(id){
+  const o=Store.get('ots',id); if(!o) return;
+  confirmDialog(`¿Eliminar la orden ${o.folio}? Se borrarán también sus tareas.`, ()=>{
+    tareasDeOT(id).forEach(t=>Store.remove('tareas',t.id));
+    Store.remove('ots',id);
+    if(state.view==='ot-detail') navigate('ot'); else renderView(state.view);
+    toast('OT eliminada');
+  });
+}
+function cambiarEstadoOT(id, estado){ Store.update('ots',id,{estado}); renderView(state.view); toast('Estado: '+estado); }
+
+/* --------------------------- Detalle de OT ----------------------------- */
+function renderOTDetail(id){
+  const o=Store.get('ots',id), el=$('#view-ot-detail');
+  if(!o){ el.innerHTML=`<div class="card empty"><h3>OT no encontrada</h3><button class="btn" onclick="navigate('ot')">Volver</button></div>`; return; }
+  const m=Store.get('motos',o.motoId), c=Store.get('clientes',o.clienteId);
+  const tareas=tareasDeOT(id), p=progresoOT(id);
+  const items=itemsDeOT(id), total=totalOT(id);
+
+  $('#topbar-action').innerHTML=`
+    <button class="btn ghost" onclick="navigate('ot')">&#8592; Volver</button>
+    <button class="btn" onclick="openOTForm('${o.id}')">Editar</button>
+    <button class="btn primary" onclick="navigate('informe-doc',{id:'${o.id}'})">&#128228; Informe</button>`;
+
+  el.innerHTML=`
+    <div class="card" style="margin-bottom:16px">
+      <div class="detail-head">
+        <div class="moto-avatar">&#128203;</div>
+        <div style="flex:1;min-width:200px">
+          <h2 style="font-family:ui-monospace,monospace;font-size:20px">${esc(o.folio||'')}</h2>
+          <div style="color:var(--text-dim);margin-top:4px">
+            ${esc(o.tipo||'')} ${m?`&middot; <a style="color:var(--accent-2);cursor:pointer" onclick="navigate('moto-detail',{id:'${m.id}'})">${esc(m.marca+' '+m.modelo)}</a>`:''}
+            ${m&&m.patente?`<span class="tag gray" style="font-family:ui-monospace,monospace;margin-left:6px">${esc(m.patente)}</span>`:''}
+          </div>
+          <div style="margin-top:10px;color:var(--text-dim);font-size:13px">
+            Dueño: <strong style="color:var(--text)">${esc(c?c.nombre:'—')}</strong>${o.mecanico?` &middot; Mecánico: <strong style="color:var(--text)">${esc(o.mecanico)}</strong>`:''}
+          </div>
+        </div>
+        <div style="text-align:right">
+          <div style="color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.07em;font-weight:700;margin-bottom:5px">Estado</div>
+          <select class="select" style="width:auto" onchange="cambiarEstadoOT('${o.id}',this.value)">
+            ${OT_ESTADOS.map(e=>`<option ${o.estado===e?'selected':''}>${e}</option>`).join('')}
+          </select>
+        </div>
+      </div>
+      <div class="spec-grid">
+        <div class="spec"><div class="k">KM ingreso</div><div class="v">${Number(o.kmIngreso||0).toLocaleString('es-CL')} km</div></div>
+        <div class="spec"><div class="k">Ingreso</div><div class="v">${esc(o.fechaIngreso||'—')}</div></div>
+        <div class="spec"><div class="k">Entrega estimada</div><div class="v">${esc(o.fechaEntrega||'—')}</div></div>
+        <div class="spec"><div class="k">Fotos</div><div class="v">${o.linkFotos?`<a href="${esc(o.linkFotos)}" target="_blank" rel="noopener" style="color:var(--accent-2)">Ver fotos</a>`:'—'}</div></div>
+      </div>
+      ${o.descripcion?`<div style="padding:16px 18px;border-top:1px solid var(--border)"><div style="font-size:11px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);font-weight:700;margin-bottom:5px">Descripción del problema</div><div style="font-size:13.5px;line-height:1.5">${esc(o.descripcion)}</div></div>`:''}
+      ${o.observaciones?`<div style="padding:16px 18px;border-top:1px solid var(--border)"><div style="font-size:11px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);font-weight:700;margin-bottom:5px">Observaciones</div><div style="font-size:13.5px;line-height:1.5">${esc(o.observaciones)}</div></div>`:''}
+    </div>
+
+    <div class="card">
+      <div class="panel-head">
+        <h3>Tareas / Checklist</h3>
+        <span style="display:flex;align-items:center;gap:12px">
+          <span style="font-size:12px;color:var(--text-dim)">${p.hechas}/${p.total} (${p.pct}%)</span>
+          <button class="btn sm" onclick="addTarea('${o.id}')">&#43; Agregar tarea</button>
+        </span>
+      </div>
+      ${p.total?`<div style="height:6px;background:var(--surface-3)"><div style="height:100%;width:${p.pct}%;background:var(--accent);transition:.3s"></div></div>`:''}
+      <div style="padding:6px 0">
+        ${tareas.length? tareas.map(tareaRow).join('') : `<div style="padding:26px 18px;color:var(--muted);text-align:center">Sin tareas todavía. ${o.tipo==='Mantención Preventiva'?'':'Agrega las tareas de este trabajo con el botón “Agregar tarea”.'}</div>`}
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:16px">
+      <div class="panel-head">
+        <h3>Presupuesto / Trabajos realizados</h3>
+        <button class="btn sm" onclick="addItem('${o.id}')">&#43; Agregar ítem</button>
+      </div>
+      <div style="padding:4px 0">
+        ${items.length? items.map(it=>`
+          <div style="display:flex;align-items:center;gap:12px;padding:10px 18px;border-bottom:1px solid var(--border)">
+            <div style="flex:1">${esc(it.descripcion)}</div>
+            <div style="font-weight:700;color:var(--text)">${formatCLP(it.monto)}</div>
+            <button class="btn sm danger" onclick="eliminarItem('${it.id}')" title="Quitar" style="flex:none">&times;</button>
+          </div>`).join('') : `<div style="padding:18px;color:var(--muted)">Sin ítems aún. Agrega la mano de obra y los repuestos del trabajo.</div>`}
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:14px 18px;border-top:2px solid var(--border);flex-wrap:wrap;gap:10px">
+          <div style="display:flex;align-items:center;gap:10px">
+            <span style="font-size:12px;color:var(--text-dim)">Estado de pago</span>
+            <select class="select" style="width:auto;padding:6px 10px" onchange="setEstadoPago('${o.id}',this.value)">
+              ${['Pendiente','Parcial','Pagado'].map(e=>`<option ${estadoPagoOT(o)===e?'selected':''}>${e}</option>`).join('')}
+            </select>
+            <span class="tag ${PAGO_CLASS[estadoPagoOT(o)]||'orange'}">${estadoPagoOT(o)}</span>
+          </div>
+          <div><span style="color:var(--text-dim);font-size:13px;margin-right:10px">TOTAL</span><span style="font-size:22px;font-weight:800;color:var(--accent-2)">${formatCLP(total)}</span></div>
+        </div>
+      </div>
+    </div>`;
+}
+
+function tareaRow(t){
+  return `<div style="display:flex;align-items:flex-start;gap:12px;padding:11px 18px;border-bottom:1px solid var(--border)">
+    <button onclick="toggleTarea('${t.id}')" title="Marcar" style="flex:none;width:22px;height:22px;border-radius:6px;border:2px solid ${t.hecha?'var(--green)':'var(--border)'};background:${t.hecha?'var(--green)':'transparent'};color:#06210f;cursor:pointer;font-size:13px;font-weight:900;display:grid;place-items:center;margin-top:1px">${t.hecha?'&#10003;':''}</button>
+    <div style="flex:1">
+      <div style="font-weight:600;${t.hecha?'color:var(--text-dim)':''}">${esc(t.descripcion)}</div>
+      ${t.indicacion?`<div style="font-size:11.5px;color:var(--muted);margin-top:2px">${esc(t.indicacion)}</div>`:''}
+      <input class="input" style="margin-top:6px;font-size:12.5px;padding:6px 10px" placeholder="Comentario / resultado: repuesto usado, medición, observación…" value="${esc(t.comentario||'')}" onchange="setTareaComentario('${t.id}',this.value)">
+    </div>
+    <button class="btn sm danger" onclick="eliminarTarea('${t.id}')" style="flex:none" title="Quitar">&times;</button>
+  </div>`;
+}
+function toggleTarea(id){ const t=Store.get('tareas',id); if(!t) return; Store.update('tareas',id,{hecha:!t.hecha}); renderOTDetail(t.otId); }
+function setTareaComentario(id,val){ Store.update('tareas',id,{comentario:val}); }
+function eliminarTarea(id){ const t=Store.get('tareas',id); if(!t) return; const otId=t.otId; Store.remove('tareas',id); renderOTDetail(otId); }
+function addTarea(otId){
+  openModal('Agregar tarea', `
+    <form id="tarea-form"><div class="form-row">
+      <label class="lbl">Descripción de la tarea <span class="req">*</span></label>
+      <input class="input" name="descripcion" autofocus placeholder="Ej: Cambiar kit de arrastre">
+    </div></form>`,
+    `<button class="btn" data-close>Cancelar</button><button class="btn primary" id="tarea-save">Agregar</button>`);
+  const save=()=>{ const d=$('#tarea-form').descripcion.value.trim(); if(!d){ toast('Escribe la tarea'); return; }
+    Store.insert('tareas',{otId,descripcion:d,hecha:false,comentario:''}); closeModal(); renderOTDetail(otId); };
+  $('#tarea-save').onclick=save;
+  $('#tarea-form').onsubmit=e=>{ e.preventDefault(); save(); };
+}
+
+/* ===================== TAREAS (vista: trabajo pendiente) =============== */
+function renderTareas(){
+  const el=$('#view-tareas');
+  const activas=Store.all('ots').filter(o=>o.estado!=='Entregada')
+    .sort((a,b)=>(a.fechaEntrega||'9999-12-31').localeCompare(b.fechaEntrega||'9999-12-31'));
+  el.innerHTML=`
+    <div class="toolbar"><div class="spacer"></div><span style="color:var(--text-dim);font-size:13px">${activas.length} OT activa(s)</span></div>
+    ${activas.length?`<div class="stat-grid" style="grid-template-columns:repeat(auto-fill,minmax(300px,1fr))">
+      ${activas.map(o=>{
+        const m=Store.get('motos',o.motoId), c=Store.get('clientes',o.clienteId), p=progresoOT(o.id);
+        const pend=tareasDeOT(o.id).filter(t=>!t.hecha);
+        return `<div class="card" style="cursor:pointer;margin:0" onclick="navigate('ot-detail',{id:'${o.id}'})">
+          <div class="panel-head"><h3 style="font-size:13px">${m?esc(m.marca+' '+m.modelo):'—'}</h3><span class="tag ${ESTADO_CLASS[o.estado]||'gray'}">${esc(o.estado)}</span></div>
+          <div style="padding:12px 16px">
+            <div class="t-sub" style="margin-bottom:9px">${esc(o.folio||'')} &middot; ${esc(c?c.nombre:'—')} &middot; ${esc(o.tipo||'')}</div>
+            <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--text-dim);margin-bottom:4px"><span>Avance</span><span>${p.hechas}/${p.total}</span></div>
+            <div style="height:7px;background:var(--surface-3);border-radius:20px;overflow:hidden"><div style="height:100%;width:${p.pct}%;background:var(--accent)"></div></div>
+            ${pend.slice(0,3).map(t=>`<div style="font-size:12px;color:var(--text-dim);margin-top:8px;display:flex;gap:8px"><span style="color:var(--muted)">&#9711;</span>${esc(t.descripcion)}</div>`).join('')}
+            ${pend.length>3?`<div style="font-size:11px;color:var(--muted);margin-top:6px">+${pend.length-3} más…</div>`:''}
+          </div>
+        </div>`;
+      }).join('')}
+    </div>`:`<div class="card empty"><div class="big">&#9989;</div><h3>No hay trabajo pendiente</h3>
+      <p>Cuando tengas órdenes activas (no entregadas), aquí verás el avance de sus tareas de un vistazo.</p>
+      <button class="btn primary" onclick="navigate('ot')">Ver órdenes</button></div>`}`;
+}
+
+/* ====================== PRESUPUESTO / ÍTEMS =========================== */
+function addItem(otId, itemId){
+  const it=itemId?Store.get('items',itemId):{};
+  openModal(itemId?'Editar ítem':'Agregar ítem al presupuesto', `
+    <form id="item-form">
+      <div class="form-row">
+        <label class="lbl">Descripción <span class="req">*</span></label>
+        <input class="input" name="descripcion" autofocus value="${esc(it.descripcion||'')}" placeholder="Ej: Mantención 14.000 km / Neumático Dunlop / Mano de obra">
+      </div>
+      <div class="form-row">
+        <label class="lbl">Monto (CLP) <span class="req">*</span></label>
+        <input class="input" name="monto" type="number" min="0" value="${esc(it.monto||'')}" placeholder="0">
+      </div>
+    </form>`,
+    `<button class="btn" data-close>Cancelar</button><button class="btn primary" id="item-save">Guardar</button>`);
+  const save=()=>{
+    const f=$('#item-form');
+    const d=f.descripcion.value.trim(), monto=Number(f.monto.value)||0;
+    if(!d){ toast('Escribe la descripción'); return; }
+    if(itemId) Store.update('items',itemId,{descripcion:d,monto});
+    else Store.insert('items',{otId,descripcion:d,monto});
+    closeModal(); renderView(state.view);
+  };
+  $('#item-save').onclick=save;
+  $('#item-form').onsubmit=e=>{ e.preventDefault(); save(); };
+}
+function eliminarItem(id){ const it=Store.get('items',id); if(!it) return; Store.remove('items',id); renderView(state.view); }
+function setEstadoPago(otId, estado){ Store.update('ots',otId,{estadoPago:estado}); renderView(state.view); toast('Pago: '+estado); }
+
+function renderPresupuestos(){
+  const el=$('#view-presupuestos');
+  if(Store.all('ots').length===0){
+    el.innerHTML=`<div class="card empty"><div class="big">&#128181;</div><h3>Aún no hay presupuestos</h3>
+      <p>Cada presupuesto vive dentro de una orden de trabajo. Crea una OT y agrégale los trabajos y repuestos.</p>
+      <button class="btn primary" onclick="navigate('ot')">Ir a Órdenes de Trabajo</button></div>`;
+    return;
+  }
+  const fPago=state.params.pago||'';
+  let ots=Store.all('ots').slice().sort((a,b)=>(b.fechaIngreso||'').localeCompare(a.fechaIngreso||''));
+  if(fPago) ots=ots.filter(o=>estadoPagoOT(o)===fPago);
+  const porCobrar=Store.all('ots').filter(o=>estadoPagoOT(o)!=='Pagado').reduce((s,o)=>s+totalOT(o.id),0);
+  el.innerHTML=`
+    <div class="stat-grid" style="grid-template-columns:repeat(auto-fit,minmax(190px,1fr))">
+      <div class="card stat"><div class="lbl"><span class="ic ic-orange">&#9203;</span> Por cobrar</div><div class="val" style="font-size:24px">${formatCLP(porCobrar)}</div><div class="foot">OTs no pagadas</div></div>
+      <div class="card stat"><div class="lbl"><span class="ic ic-green">&#9989;</span> Pagadas</div><div class="val">${Store.all('ots').filter(o=>estadoPagoOT(o)==='Pagado').length}</div><div class="foot">de ${Store.all('ots').length} OTs</div></div>
+    </div>
+    <div class="toolbar">
+      <div class="field" style="min-width:180px">
+        <select class="select" id="pago-filter">
+          <option value="">Todos los pagos</option>
+          ${['Pendiente','Parcial','Pagado'].map(e=>`<option value="${e}" ${e===fPago?'selected':''}>${e}</option>`).join('')}
+        </select>
+      </div>
+      <div class="spacer"></div><span style="color:var(--text-dim);font-size:13px">${ots.length} OT</span>
+    </div>
+    <div class="card">
+      <table>
+        <thead><tr><th>Folio</th><th>Moto / Dueño</th><th>Fecha</th><th>Total</th><th>Pago</th><th></th></tr></thead>
+        <tbody>
+          ${ots.map(o=>{
+            const m=Store.get('motos',o.motoId), c=Store.get('clientes',o.clienteId);
+            return `<tr style="cursor:pointer" onclick="navigate('ot-detail',{id:'${o.id}'})">
+              <td><span style="font-family:ui-monospace,monospace;font-weight:600">${esc(o.folio||'')}</span></td>
+              <td><div class="t-main">${m?esc(m.marca+' '+m.modelo):'—'}</div><div class="t-sub">${esc(c?c.nombre:'—')}</div></td>
+              <td>${esc(o.fechaIngreso||'')}</td>
+              <td style="font-weight:700">${formatCLP(totalOT(o.id))}</td>
+              <td><span class="tag ${PAGO_CLASS[estadoPagoOT(o)]||'orange'}">${estadoPagoOT(o)}</span></td>
+              <td onclick="event.stopPropagation()"><button class="btn sm ghost" onclick="navigate('informe-doc',{id:'${o.id}'})">Informe</button></td>
+            </tr>`;
+          }).join('')}
+        </tbody>
+      </table>
+    </div>`;
+  const f=$('#pago-filter'); if(f) f.onchange=()=>{ state.params.pago=f.value; renderPresupuestos(); };
+}
+
+/* ============================ INFORMES ================================ */
+function renderInformes(){
+  const el=$('#view-informes');
+  const t=taller();
+  const ots=Store.all('ots').slice().sort((a,b)=>(b.fechaIngreso||'').localeCompare(a.fechaIngreso||''));
+  el.innerHTML=`
+    ${(!t.mecanico && !Store.config().nombre)?`<div class="card" style="padding:14px 18px;margin-bottom:16px;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+      <span style="color:var(--text-dim);font-size:13px">Configura los datos de tu taller (nombre, mecánico, teléfono) para el encabezado del informe.</span>
+      <button class="btn sm primary" onclick="openTallerConfig()">Configurar taller</button>
+    </div>`:''}
+    <div class="toolbar"><div class="spacer"></div><button class="btn sm" onclick="openTallerConfig()">&#9881; Datos del taller</button></div>
+    <div class="card">
+      ${ots.length?`
+      <table>
+        <thead><tr><th>Folio</th><th>Moto / Dueño</th><th>Tipo</th><th>Fecha</th><th>Total</th><th></th></tr></thead>
+        <tbody>
+          ${ots.map(o=>{
+            const m=Store.get('motos',o.motoId), c=Store.get('clientes',o.clienteId);
+            return `<tr>
+              <td><span style="font-family:ui-monospace,monospace;font-weight:600">${esc(o.folio||'')}</span></td>
+              <td><div class="t-main">${m?esc(m.marca+' '+m.modelo):'—'}</div><div class="t-sub">${esc(c?c.nombre:'—')}</div></td>
+              <td>${esc(o.tipo||'')}</td>
+              <td>${esc(o.fechaIngreso||'')}</td>
+              <td style="font-weight:700">${formatCLP(totalOT(o.id))}</td>
+              <td><div class="row-actions">
+                <button class="btn sm ghost" onclick="navigate('informe-doc',{id:'${o.id}'})">Ver informe</button>
+                <button class="btn sm" style="color:#25D366" onclick="whatsappInforme('${o.id}')">WhatsApp</button>
+              </div></td>
+            </tr>`;
+          }).join('')}
+        </tbody>
+      </table>`:`<div class="empty"><div class="big">&#128228;</div><h3>Aún no hay informes</h3><p>Los informes se generan desde cada orden de trabajo.</p><button class="btn primary" onclick="navigate('ot')">Ir a Órdenes</button></div>`}
+    </div>`;
+}
+
+function whatsappInforme(otId){
+  const o=Store.get('ots',otId); if(!o) return;
+  const m=Store.get('motos',o.motoId), c=Store.get('clientes',o.clienteId), t=taller();
+  const items=itemsDeOT(otId), total=totalOT(otId);
+  const lineas=items.map(it=>`• ${it.descripcion}: ${formatCLP(it.monto)}`).join('\n');
+  const txt=`*${t.nombre}*${t.mecanico?`\n${t.mecanico}`:''}\n\n`+
+    `Informe de servicio ${o.folio||''}\n`+
+    `Moto: ${m?`${m.marca} ${m.modelo}`:''}${m&&m.patente?` (${m.patente})`:''}\n`+
+    `Fecha: ${o.fechaIngreso||''} · ${Number(o.kmIngreso||0).toLocaleString('es-CL')} km\n\n`+
+    (lineas?`*Trabajos realizados:*\n${lineas}\n\n`:'')+
+    `*TOTAL: ${formatCLP(total)}*  (${estadoPagoOT(o)})\n`+
+    (o.observaciones?`\nObservaciones: ${o.observaciones}\n`:'')+
+    (o.linkFotos?`\nFotos: ${o.linkFotos}\n`:'')+
+    `\n¡Gracias por confiar en nosotros!`;
+  const phone=telWa(c?c.telefono:'');
+  window.open('https://wa.me/'+phone+'?text='+encodeURIComponent(txt),'_blank');
+}
+
+/* ---- Documento de informe imprimible (Ficha de Servicio) ---- */
+function renderInformeDoc(id){
+  const o=Store.get('ots',id), el=$('#view-informe-doc');
+  if(!o){ el.innerHTML=`<div class="card empty"><h3>OT no encontrada</h3><button class="btn" onclick="navigate('informes')">Volver</button></div>`; return; }
+  const m=Store.get('motos',o.motoId), c=Store.get('clientes',o.clienteId), t=taller();
+  const tareas=tareasDeOT(id), items=itemsDeOT(id), total=totalOT(id);
+
+  $('#topbar-action').innerHTML=`
+    <button class="btn ghost" onclick="navigate('informes')">&#8592; Volver</button>
+    <button class="btn" onclick="openTallerConfig()">&#9881; Taller</button>
+    <button class="btn" onclick="window.print()">&#128424; Imprimir / PDF</button>
+    <button class="btn primary" style="background:#25D366;box-shadow:none" onclick="whatsappInforme('${o.id}')">WhatsApp</button>`;
+
+  el.innerHTML=`
+    <div class="paper" id="informe-paper">
+      <div class="paper-head">
+        <div>
+          <div class="paper-title">${esc(t.nombre||'Ficha de Servicio')}</div>
+          <div class="paper-date">${esc(o.fechaIngreso||'')} &nbsp;·&nbsp; Folio ${esc(o.folio||'')}</div>
+        </div>
+        <div style="text-align:right">
+          <div style="font-weight:800">Mecánico</div>
+          <div>${esc(t.mecanico||'—')}</div>
+          ${t.telefono?`<div style="color:#555;font-size:12px">${esc(t.telefono)}</div>`:''}
+        </div>
+      </div>
+
+      <div class="paper-cols">
+        <div class="paper-info">
+          <div><b>${esc(m?m.marca:'—')}</b></div>
+          <div><b>${esc(m?m.modelo:'')}</b></div>
+          <div>${esc(m?m.anio||'':'')}</div>
+          <div>${esc(m&&m.patente?m.patente:'')}</div>
+          <div>${Number(o.kmIngreso||0).toLocaleString('es-CL')} km</div>
+          <div style="margin-top:6px"><b>${esc(c?c.nombre:'—')}</b></div>
+          ${c&&c.telefono?`<div style="color:#555;font-size:12px">${esc(c.telefono)}</div>`:''}
+        </div>
+        <div class="paper-trab">
+          <table class="paper-tbl">
+            <thead><tr><th colspan="2" style="text-align:center">TRABAJOS REALIZADOS</th></tr></thead>
+            <tbody>
+              ${items.length? items.map(it=>`<tr><td>${esc(it.descripcion)}</td><td class="num">${formatCLP(it.monto)}</td></tr>`).join('') : `<tr><td colspan="2" style="color:#888">Sin ítems</td></tr>`}
+            </tbody>
+            <tfoot><tr><td style="text-align:center;font-weight:800">TOTAL</td><td class="num" style="font-weight:800">${formatCLP(total)}</td></tr></tfoot>
+          </table>
+          <div style="text-align:right;margin-top:6px;font-size:12px;color:#555">Estado de pago: <b>${estadoPagoOT(o)}</b></div>
+        </div>
+      </div>
+
+      <table class="paper-check">
+        <thead><tr><th style="width:32px">N°</th><th>Descripción</th><th>Indicación</th><th style="width:42px">Check</th><th>Comentario</th></tr></thead>
+        <tbody>
+          ${tareas.length? tareas.map((tk,i)=>`<tr>
+            <td>${i+1}</td>
+            <td><b>${esc(tk.descripcion)}</b></td>
+            <td>${esc(tk.indicacion||'')}</td>
+            <td style="text-align:center">${tk.hecha?'✓':'—'}</td>
+            <td>${esc(tk.comentario||'')}</td>
+          </tr>`).join('') : `<tr><td colspan="5" style="color:#888">Sin tareas registradas</td></tr>`}
+        </tbody>
+      </table>
+
+      ${o.descripcion?`<div class="paper-obs"><div class="paper-obs-h">Problema reportado</div><div>${esc(o.descripcion)}</div></div>`:''}
+      ${o.observaciones?`<div class="paper-obs"><div class="paper-obs-h">Observaciones</div><div>${esc(o.observaciones)}</div></div>`:''}
+      ${o.linkFotos?`<div style="margin-top:10px;font-size:12px">Fotos del trabajo: <a href="${esc(o.linkFotos)}" target="_blank" rel="noopener">${esc(o.linkFotos)}</a></div>`:''}
+    </div>`;
+}
+
+/* ---- Configuración del taller ---- */
+function openTallerConfig(){
+  const cfg=Store.config();
+  openModal('Datos del taller', `
+    <p style="margin:0 0 14px;color:var(--text-dim);font-size:13px">Aparecen en el encabezado del informe al cliente.</p>
+    <form id="cfg-form">
+      <div class="form-row"><label class="lbl">Nombre del taller</label>
+        <input class="input" name="nombre" value="${esc(cfg.nombre||'')}" placeholder="Ej: Taller Moto Pardo"></div>
+      <div class="form-row"><label class="lbl">Mecánico responsable</label>
+        <input class="input" name="mecanico" value="${esc(cfg.mecanico||'')}" placeholder="Ej: Cristian Pardo L."></div>
+      <div class="form-row"><label class="lbl">Teléfono / WhatsApp del taller</label>
+        <input class="input" name="telefono" value="${esc(cfg.telefono||'')}" placeholder="+56 9 ..."></div>
+    </form>`,
+    `<button class="btn" data-close>Cancelar</button><button class="btn primary" id="cfg-save">Guardar</button>`);
+  const save=()=>{
+    const f=$('#cfg-form');
+    Store.setConfig({nombre:f.nombre.value.trim(), mecanico:f.mecanico.value.trim(), telefono:f.telefono.value.trim()});
+    closeModal(); renderView(state.view); toast('Datos del taller guardados');
+  };
+  $('#cfg-save').onclick=save;
+  $('#cfg-form').onsubmit=e=>{ e.preventDefault(); save(); };
+}
+
+/* ================== SINCRONIZACIÓN CON GOOGLE SHEETS ==================
+   Espeja la arquitectura de Nexa: Google Identity Services (GIS) para el
+   login + Sheets API v4 por fetch directo + push/pull MANUAL. Cada colección
+   es una hoja. El sync es "el último que sube, manda" (sin merge fila a fila).
+   ===================================================================== */
+const GS = {
+  token:null, tokenExpiry:null, clientId:'', sheetId:'',
+  SCOPES:'https://www.googleapis.com/auth/spreadsheets',
+  SHEETS:['Clientes','Motos','OTs','Tareas','Items','Config'],
+};
+const GS_HEADERS = {
+  Clientes:['id','nombre','rut','telefono','email','createdAt'],
+  Motos:['id','clienteId','marca','modelo','anio','patente','color','numeroMotor','numeroChasis','kmActual','historialDuenos','createdAt'],
+  OTs:['id','motoId','clienteId','folio','tipo','estado','estadoPago','kmIngreso','mecanico','fechaIngreso','fechaEntrega','descripcion','observaciones','linkFotos','createdAt'],
+  Tareas:['id','otId','descripcion','indicacion','hecha','comentario','createdAt'],
+  Items:['id','otId','descripcion','monto','createdAt'],
+  Config:['key','value'],
+};
+function gsCell(v){ if(v===undefined||v===null) return ''; if(typeof v==='object') return JSON.stringify(v); return String(v); }
+function objToRow(obj,headers){ return headers.map(h=>gsCell(obj[h])); }
+function rowToObj(row,headers){ const o={}; headers.forEach((h,i)=>{ o[h]=row[i]!==undefined?row[i]:''; }); return o; }
+function parseColeccion(col, rows){
+  if(col==='motos') rows.forEach(m=>{ m.kmActual=Number(m.kmActual)||0; try{ m.historialDuenos=m.historialDuenos?JSON.parse(m.historialDuenos):[]; }catch(e){ m.historialDuenos=[]; } if(m.createdAt) m.createdAt=Number(m.createdAt)||m.createdAt; });
+  if(col==='ots') rows.forEach(o=>{ o.kmIngreso=Number(o.kmIngreso)||0; });
+  if(col==='tareas') rows.forEach(t=>{ t.hecha=(t.hecha===true||t.hecha==='true'||t.hecha==='TRUE'); });
+  if(col==='items') rows.forEach(it=>{ it.monto=Number(it.monto)||0; });
+  return rows;
+}
+
+/* Config local de credenciales (NO se sube a Sheets) */
+function gsExtractSheetId(v){ const m=/\/spreadsheets\/d\/([a-zA-Z0-9_-]+)/.exec(v); return m?m[1]:v; }
+function gsSaveConfig(clientId, sheetId){ GS.clientId=clientId; GS.sheetId=sheetId; Store.data.gsConfig={clientId,sheetId}; Store.save(); }
+function gsLoadConfig(){ const g=Store.data.gsConfig; if(g){ GS.clientId=g.clientId||''; GS.sheetId=g.sheetId||''; } }
+
+/* Auth con Google Identity Services */
+function gsSignIn(){
+  if(!GS.clientId||!GS.sheetId){ syncStatus('Ingresa el Client ID y el link de la planilla primero.','err'); return; }
+  if(!(window.google&&google.accounts&&google.accounts.oauth2)){ syncStatus('La librería de Google aún no termina de cargar. Espera unos segundos y reintenta.','warn'); return; }
+  try{
+    const client=google.accounts.oauth2.initTokenClient({
+      client_id:GS.clientId, scope:GS.SCOPES,
+      callback:(resp)=>{
+        if(resp.error){ syncStatus('Error de autorización: '+resp.error,'err'); return; }
+        GS.token=resp.access_token; GS.tokenExpiry=Date.now()+((resp.expires_in||3600)-60)*1000;
+        syncStatus('Conectado a Google. La sesión dura ~1 hora.','ok'); updateSyncPill();
+        if(state.view==='sync') renderSync();
+      },
+    });
+    client.requestAccessToken();
+  }catch(e){ syncStatus('No se pudo iniciar Google. Revisa el Client ID y el origen autorizado.','err'); }
+}
+function gsSignOut(){ try{ if(GS.token&&window.google) google.accounts.oauth2.revoke(GS.token,()=>{}); }catch(e){} GS.token=null; GS.tokenExpiry=null; updateSyncPill(); if(state.view==='sync') renderSync(); toast('Desconectado de Google'); }
+function gsIsSignedIn(){ return !!(GS.token && Date.now()<GS.tokenExpiry); }
+
+/* Llamadas a la Sheets API v4 */
+async function gsRequest(method, endpoint, body){
+  const url='https://sheets.googleapis.com/v4/spreadsheets/'+GS.sheetId+endpoint;
+  const opts={ method, headers:{ 'Authorization':'Bearer '+GS.token, 'Content-Type':'application/json' } };
+  if(body) opts.body=JSON.stringify(body);
+  const res=await fetch(url,opts);
+  if(!res.ok){ let m=res.statusText; try{ const e=await res.json(); m=(e.error&&e.error.message)||m; }catch(_){ } throw new Error(m); }
+  return res.json();
+}
+async function gsEnsureSheets(){
+  const meta=await gsRequest('GET','?fields=sheets.properties.title');
+  const existing=(meta.sheets||[]).map(s=>s.properties.title);
+  const toCreate=GS.SHEETS.filter(s=>!existing.includes(s));
+  if(toCreate.length) await gsRequest('POST',':batchUpdate',{requests:toCreate.map(title=>({addSheet:{properties:{title}}}))});
+}
+async function gsWriteSheet(name, data, headers){
+  await gsRequest('POST','/values/'+encodeURIComponent(name+'!A1:ZZ')+':clear',{});
+  const rows=[headers, ...data.map(o=>objToRow(o,headers))];
+  await gsRequest('PUT','/values/'+encodeURIComponent(name+'!A1')+'?valueInputOption=RAW',{range:name+'!A1',majorDimension:'ROWS',values:rows});
+}
+async function gsReadSheet(name, headers){
+  const res=await gsRequest('GET','/values/'+encodeURIComponent(name+'!A1:ZZ'));
+  if(!res.values||res.values.length<2) return [];
+  return res.values.slice(1).map(r=>rowToObj(r,headers));
+}
+
+/* Subir / cargar */
+async function gsUploadAll(){
+  if(!gsIsSignedIn()){ syncStatus('Conéctate con Google primero.','warn'); return; }
+  syncStatus('Subiendo datos a Google Sheets…','info');
+  try{
+    await gsEnsureSheets();
+    const cfg=Store.config();
+    await Promise.all([
+      gsWriteSheet('Clientes', Store.all('clientes'), GS_HEADERS.Clientes),
+      gsWriteSheet('Motos',    Store.all('motos'),    GS_HEADERS.Motos),
+      gsWriteSheet('OTs',      Store.all('ots'),      GS_HEADERS.OTs),
+      gsWriteSheet('Tareas',   Store.all('tareas'),   GS_HEADERS.Tareas),
+      gsWriteSheet('Items',    Store.all('items'),    GS_HEADERS.Items),
+      gsWriteSheet('Config', [
+        {key:'tallerNombre',   value:cfg.nombre||''},
+        {key:'tallerMecanico', value:cfg.mecanico||''},
+        {key:'tallerTelefono', value:cfg.telefono||''},
+        {key:'lastSync',       value:new Date().toISOString()},
+      ], GS_HEADERS.Config),
+    ]);
+    Store.data.lastSync=new Date().toLocaleString('es-CL'); Store.save();
+    syncStatus('✓ Datos subidos: '+Store.all('clientes').length+' clientes, '+Store.all('motos').length+' motos, '+Store.all('ots').length+' OTs.','ok');
+    if(state.view==='sync') renderSync();
+  }catch(e){ syncStatus('Error al subir: '+e.message,'err'); }
+}
+async function gsLoadAll(){
+  if(!gsIsSignedIn()){ syncStatus('Conéctate con Google primero.','warn'); return; }
+  if(!confirm('Esto reemplazará los datos de ESTE dispositivo con los de Google Sheets. ¿Continuar?')) return;
+  syncStatus('Cargando datos desde Google Sheets…','info');
+  try{
+    const [cl,mo,ot,ta,it,cf]=await Promise.all([
+      gsReadSheet('Clientes',GS_HEADERS.Clientes),
+      gsReadSheet('Motos',   GS_HEADERS.Motos),
+      gsReadSheet('OTs',     GS_HEADERS.OTs),
+      gsReadSheet('Tareas',  GS_HEADERS.Tareas),
+      gsReadSheet('Items',   GS_HEADERS.Items),
+      gsReadSheet('Config',  GS_HEADERS.Config),
+    ]);
+    parseColeccion('motos',mo); parseColeccion('ots',ot); parseColeccion('tareas',ta); parseColeccion('items',it);
+    Store.data.clientes=cl.filter(x=>x.id);
+    Store.data.motos   =mo.filter(x=>x.id);
+    Store.data.ots     =ot.filter(x=>x.id);
+    Store.data.tareas  =ta.filter(x=>x.id);
+    Store.data.items   =it.filter(x=>x.id);
+    const cm={}; cf.forEach(r=>{ cm[r.key]=r.value; });
+    Store.data.config=Object.assign({}, Store.data.config, {
+      nombre:   cm.tallerNombre   || Store.data.config.nombre || '',
+      mecanico: cm.tallerMecanico || Store.data.config.mecanico || '',
+      telefono: cm.tallerTelefono || Store.data.config.telefono || '',
+    });
+    Store.data.lastSync=new Date().toLocaleString('es-CL');
+    Store.save(); refreshCounts();
+    syncStatus('✓ Datos cargados: '+Store.all('clientes').length+' clientes, '+Store.all('motos').length+' motos, '+Store.all('ots').length+' OTs.','ok');
+    if(state.view==='sync') renderSync();
+    toast('Datos sincronizados desde Sheets');
+  }catch(e){ syncStatus('Error al cargar: '+e.message,'err'); }
+}
+
+/* UI */
+function syncStatus(msg,type){ const el=document.getElementById('sync-status'); if(el){ el.style.display='block'; el.className='sync-status sync-'+(type||'info'); el.textContent=msg; } }
+function updateSyncPill(){
+  const pill=document.getElementById('sync-pill'); if(!pill) return;
+  if(gsIsSignedIn()) pill.innerHTML='<span class="dot" style="background:var(--green);box-shadow:0 0 0 3px rgba(34,197,94,.18)"></span> Conectado a Sheets';
+  else if(GS.clientId&&GS.sheetId) pill.innerHTML='<span class="dot" style="background:var(--blue)"></span> Sheets configurado';
+  else pill.innerHTML='<span class="dot"></span> Solo local (sin sync)';
+}
+function gsSaveFromUI(thenConnect){
+  const cid=($('#gs-client').value||'').trim();
+  const sid=gsExtractSheetId(($('#gs-sheet').value||'').trim());
+  if(!cid||!sid){ syncStatus('Completa el Client ID y el link de la planilla.','warn'); return; }
+  gsSaveConfig(cid,sid); updateSyncPill();
+  if(thenConnect) gsSignIn(); else { syncStatus('Credenciales guardadas.','ok'); }
+}
+function renderSync(){
+  const el=$('#view-sync'); gsLoadConfig();
+  const conf=!!(GS.clientId&&GS.sheetId), conn=gsIsSignedIn();
+  el.innerHTML=`
+    <div class="card" style="margin-bottom:16px">
+      <div class="panel-head"><h3>Conexión con Google Sheets</h3>
+        <span class="tag ${conn?'orange':'gray'}">${conn?'Conectado':(conf?'Configurado':'Sin configurar')}</span></div>
+      <div style="padding:18px">
+        <div class="form-row"><label class="lbl">Client ID de Google Cloud</label>
+          <input class="input" id="gs-client" value="${esc(GS.clientId)}" placeholder="xxxxxxxx.apps.googleusercontent.com"></div>
+        <div class="form-row"><label class="lbl">Planilla de Google (pega el link completo o el ID)</label>
+          <input class="input" id="gs-sheet" value="${esc(GS.sheetId)}" placeholder="https://docs.google.com/spreadsheets/d/…/edit"></div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:4px">
+          <button class="btn" onclick="gsSaveFromUI(false)">Guardar credenciales</button>
+          ${conn? `<button class="btn danger" onclick="gsSignOut()">Desconectar</button>`
+                : `<button class="btn primary" onclick="gsSaveFromUI(true)">Conectar con Google</button>`}
+        </div>
+        <div id="sync-status" class="sync-status" style="display:none;margin-top:14px"></div>
+      </div>
+    </div>
+
+    <div class="card" style="margin-bottom:16px">
+      <div class="panel-head"><h3>Sincronizar</h3>
+        ${Store.data.lastSync?`<span style="color:var(--text-dim);font-size:12px">Última vez: ${esc(Store.data.lastSync)}</span>`:''}</div>
+      <div style="padding:18px;display:flex;gap:10px;flex-wrap:wrap">
+        <button class="btn primary" ${conn?'':'disabled'} onclick="gsUploadAll()">&#11014;&#65039; Subir todo a Sheets</button>
+        <button class="btn" ${conn?'':'disabled'} onclick="gsLoadAll()">&#11015;&#65039; Cargar desde Sheets</button>
+      </div>
+      <div style="padding:0 18px 16px;color:var(--text-dim);font-size:12.5px;line-height:1.7">
+        <strong>Primera vez:</strong> conéctate y usa “Subir todo a Sheets” para crear las hojas y volcar tus datos.<br>
+        <strong>Día a día (varios dispositivos):</strong> al empezar en un equipo usa “Cargar desde Sheets”; al terminar, “Subir todo”. El último que sube es el que queda.
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="panel-head"><h3>Cómo dejarlo funcionando (una sola vez)</h3></div>
+      <div style="padding:18px;color:var(--text-dim);font-size:13px;line-height:1.8">
+        1. En <strong>Google Cloud</strong>, crea un “ID de cliente OAuth” tipo <em>Aplicación web</em> y agrega la URL de esta app (tu GitHub Pages) en <em>Orígenes autorizados de JavaScript</em>.<br>
+        2. Activa la <strong>API de Google Sheets</strong> en ese mismo proyecto.<br>
+        3. Crea una <strong>planilla</strong> en Google Sheets y copia su link.<br>
+        4. Pega el Client ID y el link aquí arriba, guarda y conéctate.<br>
+        <span style="color:var(--accent-2)">Si esta app vive en el mismo dominio que Nexa (tu-usuario.github.io), puedes reutilizar el mismo Client ID.</span>
+      </div>
+    </div>`;
+  updateSyncPill();
+}
+function initGS(){ gsLoadConfig(); updateSyncPill(); }
+
+/* ============================ DATOS DEMO =============================== */
+function seedDemo(){
+  const c1=Store.insert('clientes',{nombre:'Juan Pérez',rut:'12345678-5',telefono:'+56 9 8765 4321',email:'juan@correo.cl'});
+  const c2=Store.insert('clientes',{nombre:'María González',rut:'9876543-3',telefono:'+56 9 1234 5678',email:'maria@correo.cl'});
+  const m1=Store.insert('motos',{clienteId:c1.id,marca:'Honda',modelo:'CB 190R',anio:'2022',patente:'JKLM45',color:'Rojo',kmActual:14200,numeroMotor:'KC09E-1234567',numeroChasis:'9C2KC0900NR012345'});
+  const m2=Store.insert('motos',{clienteId:c1.id,marca:'Yamaha',modelo:'FZ 2.0',anio:'2020',patente:'TRSV88',color:'Negro',kmActual:31050,numeroMotor:'',numeroChasis:''});
+  const m3=Store.insert('motos',{clienteId:c2.id,marca:'Suzuki',modelo:'GN 125',anio:'2019',patente:'BBCC10',color:'Azul',kmActual:22480,numeroMotor:'',numeroChasis:''});
+  [m1,m2,m3].forEach(m=>{ m.historialDuenos=[{clienteId:m.clienteId,desde:'2024-01-15',hasta:null}]; });
+  const o1=Store.insert('ots',{motoId:m1.id,clienteId:c1.id,folio:nextFolio(),tipo:'Mantención Preventiva',estado:'En Proceso',estadoPago:'Pendiente',kmIngreso:14200,mecanico:'Pedro',fechaIngreso:todayISO(),fechaEntrega:'',descripcion:'Mantención de los 14.000 km',observaciones:'Revisar tensión de cadena en el próximo servicio.',linkFotos:''});
+  TAREAS_MANT_PREVENTIVA.forEach((t,i)=>Store.insert('tareas',{otId:o1.id,descripcion:t.d,indicacion:t.i,hecha:i<6,comentario:i===2?'Liqui Moly 10W50, 3,2 lts':''}));
+  Store.insert('items',{otId:o1.id,descripcion:'Mantención 14.000 km (mano de obra)',monto:85000});
+  Store.insert('items',{otId:o1.id,descripcion:'Kit de filtros + bujías',monto:42000});
+  const o2=Store.insert('ots',{motoId:m3.id,clienteId:c2.id,folio:nextFolio(),tipo:'Reparación',estado:'Entregada',estadoPago:'Pagado',kmIngreso:22480,mecanico:'Pedro',fechaIngreso:'2026-05-10',fechaEntrega:'2026-05-12',descripcion:'No enciende, falla eléctrica',observaciones:'',linkFotos:''});
+  Store.insert('tareas',{otId:o2.id,descripcion:'Revisión del sistema eléctrico',indicacion:'Diagnóstico con multímetro',hecha:true,comentario:'Fusible quemado'});
+  Store.insert('tareas',{otId:o2.id,descripcion:'Cambio de batería',indicacion:'Reemplazo y prueba de carga',hecha:true,comentario:'Batería 12V nueva'});
+  Store.insert('items',{otId:o2.id,descripcion:'Diagnóstico eléctrico (mano de obra)',monto:25000});
+  Store.insert('items',{otId:o2.id,descripcion:'Batería 12V',monto:48000});
+  Store.save();
+}
+
+/* ============================== INIT ================================== */
+$$('.nav-item[data-view]').forEach(n=>n.addEventListener('click',()=>navigate(n.dataset.view)));
+Store.load();
+initGS();
+navigate('dashboard');
+</script>
+</body>
+</html>
