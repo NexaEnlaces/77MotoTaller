@@ -9,26 +9,26 @@
   @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
   /* ===================== Tema / variables ===================== */
   :root{
-    --bg:#0b1220;        /* fondo página, azul muy oscuro */
-    --bg-2:#0f172a;      /* sidebar */
-    --surface:#16213a;   /* tarjetas / paneles */
-    --surface-2:#1e293b;
-    --surface-3:#243149;
-    --border:#27324a;
-    --text:#e6edf6;
-    --text-dim:#9fb0cc;
-    --muted:#6b7a96;
-    --accent:#f97316;    /* naranja taller */
-    --accent-2:#fb923c;
-    --accent-soft:rgba(249,115,22,.14);
-    --blue:#3b82f6;
-    --green:#22c55e;
-    --amber:#f59e0b;
-    --red:#ef4444;
-    --cyan:#06b6d4;
+    --bg:#eef1f6;        /* fondo página claro */
+    --bg-2:#14161b;      /* sidebar grafito (carbono) */
+    --surface:#ffffff;   /* tarjetas / paneles */
+    --surface-2:#f1f4f9;
+    --surface-3:#e4e9f1;
+    --border:#e0e5ec;
+    --text:#1b2230;
+    --text-dim:#5a6678;
+    --muted:#9aa4b4;
+    --accent:#2f6df0;    /* azul acero */
+    --accent-2:#1f57cf;  /* azul oscuro para texto sobre blanco */
+    --accent-soft:rgba(47,109,240,.12);
+    --blue:#2f6df0;
+    --green:#16a34a;
+    --amber:#d97706;
+    --red:#dc2626;
+    --cyan:#0891b2;
     --radius:14px;
     --radius-sm:9px;
-    --shadow:0 12px 34px rgba(0,0,0,.40);
+    --shadow:0 6px 20px rgba(20,40,80,.08);
     --font:'Inter',ui-sans-serif,system-ui,-apple-system,'Segoe UI',Roboto,Arial,sans-serif;
   }
 
@@ -36,7 +36,7 @@
   html,body{margin:0;height:100%}
   body{
     font-family:var(--font);
-    background:radial-gradient(1200px 600px at 80% -10%, #122038 0%, var(--bg) 55%);
+    background:var(--bg);
     color:var(--text);
     -webkit-font-smoothing:antialiased;
     font-size:14.5px;
@@ -49,23 +49,26 @@
 
   .sidebar{
     width:248px;min-width:248px;
-    background:linear-gradient(180deg,#0f1a30 0%, var(--bg-2) 100%);
+    background:linear-gradient(180deg,#1c1f26 0%, var(--bg-2) 100%);
     border-right:1px solid var(--border);
     display:flex;flex-direction:column;
     position:sticky;top:0;height:100vh;
   }
   .brand{
-    display:flex;align-items:center;gap:12px;
-    padding:20px 18px 16px;border-bottom:1px solid var(--border);
+    display:flex;flex-direction:column;align-items:center;gap:8px;
+    padding:18px 16px 16px;border-bottom:1px solid rgba(255,255,255,.1);
   }
-  .brand .logo{
-    width:40px;height:40px;border-radius:11px;flex:none;
-    background:linear-gradient(135deg,var(--accent),#ea580c);
-    display:grid;place-items:center;color:#fff;font-size:20px;
-    box-shadow:0 6px 16px rgba(249,115,22,.4);
+  .brand-logo{max-width:158px;width:100%;height:auto;display:block}
+  .brand-fallback{display:flex;align-items:center;gap:11px}
+  .logo-badge{
+    width:44px;height:44px;border-radius:11px;flex:none;
+    background:linear-gradient(135deg,#3a4252,#15171c);
+    border:1px solid rgba(255,255,255,.22);
+    display:grid;place-items:center;color:#e7edf6;font-size:18px;font-weight:900;font-style:italic;
+    box-shadow:0 6px 16px rgba(0,0,0,.35);
   }
-  .brand h1{font-size:15px;margin:0;line-height:1.15;font-weight:700;letter-spacing:.2px}
-  .brand span{font-size:11.5px;color:var(--text-dim);font-weight:500}
+  .brand h1{font-size:15px;margin:0;line-height:1.15;font-weight:800;letter-spacing:.3px;color:#fff}
+  .brand span{font-size:11.5px;color:rgba(255,255,255,.55);font-weight:500}
 
   .nav{padding:12px 10px;overflow-y:auto;flex:1}
   .nav-group-label{
@@ -94,14 +97,26 @@
     background:var(--surface-2);border:1px solid var(--border);
     padding:6px 10px;border-radius:20px;color:var(--text-dim);font-weight:600;font-size:11.5px;
   }
-  .dot{width:8px;height:8px;border-radius:50%;background:var(--amber);box-shadow:0 0 0 3px rgba(245,158,11,.18)}
+  .dot{width:8px;height:8px;border-radius:50%;background:var(--amber);box-shadow:0 0 0 3px rgba(217,119,6,.18)}
+
+  /* Overrides para la barra lateral grafito (texto claro) */
+  .sidebar .nav-group-label{color:rgba(255,255,255,.4)}
+  .sidebar .nav-item{color:rgba(255,255,255,.66)}
+  .sidebar .nav-item:hover{background:rgba(255,255,255,.09);color:#fff}
+  .sidebar .nav-item.active{background:rgba(47,109,240,.26);color:#fff;font-weight:600}
+  .sidebar .nav-item.active .ic{color:#fff}
+  .sidebar .nav-item .ic{color:rgba(255,255,255,.5)}
+  .sidebar .nav-item .count{background:rgba(255,255,255,.14);color:rgba(255,255,255,.8)}
+  .sidebar .nav-item.active .count{background:var(--accent);color:#fff}
+  .sidebar-foot{border-top:1px solid rgba(255,255,255,.1)}
+  .sidebar .sync-pill{background:rgba(255,255,255,.08);border-color:rgba(255,255,255,.14);color:rgba(255,255,255,.62)}
 
   /* ===================== Contenido ===================== */
   .content{flex:1;min-width:0;display:flex;flex-direction:column}
   .topbar{
     display:flex;align-items:center;gap:16px;
     padding:18px 26px;border-bottom:1px solid var(--border);
-    position:sticky;top:0;background:rgba(11,18,32,.82);backdrop-filter:blur(10px);z-index:5;
+    position:sticky;top:0;background:rgba(255,255,255,.85);backdrop-filter:blur(10px);z-index:5;
   }
   .topbar h2{margin:0;font-size:19px;font-weight:700}
   .topbar .sub{color:var(--text-dim);font-size:12.5px;margin-top:2px}
@@ -118,8 +133,8 @@
     border:1px solid var(--border);background:var(--surface-2);color:var(--text);
     padding:9px 15px;border-radius:10px;cursor:pointer;font-size:13.5px;font-weight:600;transition:.15s;
   }
-  .btn:hover{background:var(--surface-3);border-color:#33415c}
-  .btn.primary{background:linear-gradient(135deg,var(--accent),#ea580c);border-color:transparent;color:#fff;box-shadow:0 6px 16px rgba(249,115,22,.3)}
+  .btn:hover{background:var(--surface-3);border-color:#cdd5e0}
+  .btn.primary{background:linear-gradient(135deg,#3a7bf5,var(--accent));border-color:transparent;color:#fff;box-shadow:0 6px 16px rgba(47,109,240,.28)}
   .btn.primary:hover{filter:brightness(1.06)}
   .btn.ghost{background:transparent}
   .btn.danger{color:var(--red);border-color:transparent;background:transparent}
@@ -155,9 +170,11 @@
   .row-actions{display:flex;gap:4px;justify-content:flex-end}
 
   .tag{display:inline-flex;align-items:center;gap:6px;padding:3px 10px;border-radius:20px;font-size:11.5px;font-weight:700;border:1px solid transparent}
-  .tag.blue{background:rgba(59,130,246,.14);color:#7fb0ff}
+  .tag.blue{background:rgba(47,109,240,.13);color:#1d4ed8}
   .tag.orange{background:var(--accent-soft);color:var(--accent-2)}
   .tag.gray{background:var(--surface-3);color:var(--text-dim)}
+  .tag.amber{background:rgba(217,119,6,.14);color:#b45309}
+  .tag.green{background:rgba(22,163,74,.14);color:#15803d}
 
   .empty{text-align:center;padding:54px 20px;color:var(--text-dim)}
   .empty .big{font-size:46px;margin-bottom:8px;opacity:.5}
@@ -172,9 +189,9 @@
   .stat .val{font-size:30px;font-weight:800;letter-spacing:-.5px}
   .stat .foot{font-size:11.5px;color:var(--muted)}
   .ic-orange{background:var(--accent-soft);color:var(--accent-2)}
-  .ic-blue{background:rgba(59,130,246,.14);color:#7fb0ff}
-  .ic-green{background:rgba(34,197,94,.14);color:#5fe08a}
-  .ic-cyan{background:rgba(6,182,212,.14);color:#4dd6ec}
+  .ic-blue{background:rgba(47,109,240,.13);color:#1d4ed8}
+  .ic-green{background:rgba(22,163,74,.14);color:#15803d}
+  .ic-cyan{background:rgba(8,145,178,.14);color:#0e7490}
 
   .panel-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
   @media(max-width:880px){.panel-grid{grid-template-columns:1fr}}
@@ -185,7 +202,7 @@
   .detail-head{display:flex;align-items:flex-start;gap:18px;padding:22px;flex-wrap:wrap}
   .moto-avatar{
     width:64px;height:64px;border-radius:14px;flex:none;display:grid;place-items:center;font-size:30px;
-    background:linear-gradient(135deg,#1e293b,#0f172a);border:1px solid var(--border);
+    background:linear-gradient(135deg,#2a2f3a,#15171c);border:1px solid rgba(0,0,0,.12);color:#e7edf6;
   }
   .detail-head h2{margin:0;font-size:22px;font-weight:800}
   .spec-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:1px;background:var(--border);border-top:1px solid var(--border)}
@@ -223,7 +240,7 @@
   #toast .check{color:var(--green);margin-right:8px}
 
   ::-webkit-scrollbar{width:10px;height:10px}
-  ::-webkit-scrollbar-thumb{background:#243149;border-radius:10px;border:2px solid transparent;background-clip:padding-box}
+  ::-webkit-scrollbar-thumb{background:#c4ccd8;border-radius:10px;border:2px solid transparent;background-clip:padding-box}
 
   /* ===================== Informe (hoja imprimible) ===================== */
   .paper{background:#fff;color:#15233f;border-radius:10px;max-width:980px;margin:0 auto;padding:30px 34px;box-shadow:var(--shadow);font-size:13px}
@@ -270,10 +287,14 @@
   <!-- ============ SIDEBAR ============ -->
   <aside class="sidebar">
     <div class="brand">
-      <div class="logo">&#128295;</div>
-      <div>
-        <h1>Taller Motos</h1>
-        <span>Gestión de servicios</span>
+      <img src="logo.png" alt="MotoTaller 77" class="brand-logo"
+           onerror="this.style.display='none';var f=document.getElementById('brand-fallback');if(f)f.style.display='flex';">
+      <div class="brand-fallback" id="brand-fallback" style="display:none">
+        <div class="logo-badge">77</div>
+        <div>
+          <h1>MOTOTALLER 77</h1>
+          <span>Gestión de servicios</span>
+        </div>
       </div>
     </div>
     <nav class="nav" id="nav">
@@ -390,12 +411,12 @@ function toast(msg){
 /* ------------------------------- STORE --------------------------------- */
 const Store = {
   KEY:'tallerMotos.v1',
-  data:{ clientes:[], motos:[], ots:[], tareas:[], items:[], config:{} },
+  data:{ clientes:[], motos:[], ots:[], tareas:[], items:[], pagos:[], config:{} },
 
   load(){
     try{
       const raw=localStorage.getItem(this.KEY);
-      if(raw){ this.data=Object.assign({clientes:[],motos:[],ots:[],tareas:[],items:[],config:{}}, JSON.parse(raw)); }
+      if(raw){ this.data=Object.assign({clientes:[],motos:[],ots:[],tareas:[],items:[],pagos:[],config:{}}, JSON.parse(raw)); }
     }catch(e){ console.warn('Store.load falló, se usa estado vacío',e); }
     if(!this.data.config) this.data.config={};
   },
@@ -533,10 +554,10 @@ function renderDashboard(){
   const clientes=Store.all('clientes'), motos=Store.all('motos'), ots=Store.all('ots');
   const enTaller = motos.filter(m=> Store.otsDeMoto(m.id).some(o=>o.estado && o.estado!=='Entregada')).length;
 
-  // Ingresos del mes (de presupuestos pagados) — 0 hasta tener el módulo
+  // Ingresos del mes = suma de los abonos recibidos este mes (flujo real de caja)
   const mes = new Date().toISOString().slice(0,7);
-  const ingresosMes = ots.filter(o=>o.estadoPago==='Pagado' && (o.fechaIngreso||'').slice(0,7)===mes)
-                         .reduce((s,o)=>s+totalOT(o.id),0);
+  const ingresosMes = Store.all('pagos').filter(p=>(p.fecha||'').slice(0,7)===mes)
+                         .reduce((s,p)=>s+(Number(p.monto)||0),0);
 
   const porEstado = {};
   OT_ESTADOS.forEach(e=>porEstado[e]=0);
@@ -579,7 +600,7 @@ function renderDashboard(){
       <div class="card stat">
         <div class="lbl"><span class="ic ic-green">&#128181;</span> Ingresos del mes</div>
         <div class="val" style="font-size:24px">${formatCLP(ingresosMes)}</div>
-        <div class="foot">OTs pagadas este mes</div>
+        <div class="foot">abonos recibidos este mes</div>
       </div>
     </div>
 
@@ -1030,13 +1051,19 @@ const TAREAS_MANT_PREVENTIVA = [
   {d:'Prueba de supresión de arranque', i:'Caballete, cambios, embrague'},
   {d:'Reset de SERVICE', i:'Reinicio del recordatorio en pantalla'},
 ];
-const ESTADO_CLASS = {'Recibida':'blue','En Proceso':'orange','Lista':'orange','Entregada':'gray'};
-const PAGO_CLASS = {'Pendiente':'orange','Parcial':'blue','Pagado':'gray'};
+const ESTADO_CLASS = {'Recibida':'blue','En Proceso':'amber','Lista':'green','Entregada':'gray'};
+const PAGO_CLASS = {'Pendiente':'amber','Parcial':'blue','Pagado':'green'};
 
 /* --- Presupuesto / cobro --- */
 function itemsDeOT(otId){ return Store.all('items').filter(x=>x.otId===otId); }
 function totalOT(otId){ return itemsDeOT(otId).reduce((s,x)=>s+(Number(x.monto)||0),0); }
-function estadoPagoOT(o){ return o.estadoPago||'Pendiente'; }
+/* --- Abonos / pagos --- */
+const MEDIOS_PAGO = ['Efectivo','Transferencia','Tarjeta / débito','Otro'];
+function pagosDeOT(otId){ return Store.all('pagos').filter(p=>p.otId===otId); }
+function abonadoOT(otId){ return pagosDeOT(otId).reduce((s,p)=>s+(Number(p.monto)||0),0); }
+function saldoOT(otId){ return totalOT(otId)-abonadoOT(otId); }
+/* Estado de pago CALCULADO a partir de los abonos (ya no es manual) */
+function estadoPagoOT(o){ const id=typeof o==='string'?o:o.id; const tot=totalOT(id), ab=abonadoOT(id); if(ab<=0) return 'Pendiente'; if(ab<tot) return 'Parcial'; return 'Pagado'; }
 
 /* --- Datos del taller (encabezado del informe) --- */
 function taller(){ const c=Store.config(); return {nombre:c.nombre||'Ficha de Servicio', mecanico:c.mecanico||'', telefono:c.telefono||''}; }
@@ -1274,6 +1301,7 @@ function renderOTDetail(id){
   const m=Store.get('motos',o.motoId), c=Store.get('clientes',o.clienteId);
   const tareas=tareasDeOT(id), p=progresoOT(id);
   const items=itemsDeOT(id), total=totalOT(id);
+  const pagos=pagosDeOT(id), abonado=abonadoOT(id), saldo=saldoOT(id), estadoPago=estadoPagoOT(o);
 
   $('#topbar-action').innerHTML=`
     <button class="btn ghost" onclick="navigate('ot')">&#8592; Volver</button>
@@ -1337,16 +1365,31 @@ function renderOTDetail(id){
             <div style="font-weight:700;color:var(--text)">${formatCLP(it.monto)}</div>
             <button class="btn sm danger" onclick="eliminarItem('${it.id}')" title="Quitar" style="flex:none">&times;</button>
           </div>`).join('') : `<div style="padding:18px;color:var(--muted)">Sin ítems aún. Agrega la mano de obra y los repuestos del trabajo.</div>`}
-        <div style="display:flex;justify-content:space-between;align-items:center;padding:14px 18px;border-top:2px solid var(--border);flex-wrap:wrap;gap:10px">
-          <div style="display:flex;align-items:center;gap:10px">
-            <span style="font-size:12px;color:var(--text-dim)">Estado de pago</span>
-            <select class="select" style="width:auto;padding:6px 10px" onchange="setEstadoPago('${o.id}',this.value)">
-              ${['Pendiente','Parcial','Pagado'].map(e=>`<option ${estadoPagoOT(o)===e?'selected':''}>${e}</option>`).join('')}
-            </select>
-            <span class="tag ${PAGO_CLASS[estadoPagoOT(o)]||'orange'}">${estadoPagoOT(o)}</span>
-          </div>
-          <div><span style="color:var(--text-dim);font-size:13px;margin-right:10px">TOTAL</span><span style="font-size:22px;font-weight:800;color:var(--accent-2)">${formatCLP(total)}</span></div>
+        <div style="display:flex;justify-content:flex-end;align-items:center;padding:14px 18px;border-top:2px solid var(--border)">
+          <span style="color:var(--text-dim);font-size:13px;margin-right:10px">TOTAL</span><span style="font-size:22px;font-weight:800;color:var(--accent-2)">${formatCLP(total)}</span>
         </div>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:16px">
+      <div class="panel-head">
+        <h3>Pagos / Abonos</h3>
+        <button class="btn sm primary" ${total>0?'':'disabled title="Agrega ítems al presupuesto primero"'} onclick="addPago('${o.id}')">&#43; Registrar abono</button>
+      </div>
+      <div style="display:flex;flex-wrap:wrap;gap:1px;background:var(--border);border-bottom:1px solid var(--border)">
+        <div style="flex:1;min-width:120px;background:var(--surface);padding:13px 18px"><div style="font-size:10.5px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:700">Total</div><div style="font-size:18px;font-weight:800">${formatCLP(total)}</div></div>
+        <div style="flex:1;min-width:120px;background:var(--surface);padding:13px 18px"><div style="font-size:10.5px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:700">Abonado</div><div style="font-size:18px;font-weight:800;color:var(--green)">${formatCLP(abonado)}</div></div>
+        <div style="flex:1;min-width:120px;background:var(--surface);padding:13px 18px"><div style="font-size:10.5px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:700">Saldo</div><div style="font-size:18px;font-weight:800;color:${saldo>0?'var(--accent-2)':'var(--text-dim)'}">${formatCLP(saldo)}</div></div>
+        <div style="flex:1;min-width:120px;background:var(--surface);padding:13px 18px"><div style="font-size:10.5px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:700">Estado</div><div style="margin-top:5px"><span class="tag ${PAGO_CLASS[estadoPago]||'orange'}">${estadoPago}</span></div></div>
+      </div>
+      <div style="padding:4px 0">
+        ${pagos.length? pagos.slice().sort((a,b)=>(a.fecha||'').localeCompare(b.fecha||'')).map(pg=>`
+          <div style="display:flex;align-items:center;gap:12px;padding:10px 18px;border-bottom:1px solid var(--border)">
+            <div style="color:var(--text-dim);font-size:12.5px;min-width:92px">${esc(pg.fecha||'')}</div>
+            <div style="flex:1">${esc(pg.medio||'')}</div>
+            <div style="font-weight:700;color:var(--green)">${formatCLP(pg.monto)}</div>
+            <button class="btn sm danger" onclick="eliminarPago('${pg.id}')" title="Quitar" style="flex:none">&times;</button>
+          </div>`).join('') : `<div style="padding:18px;color:var(--muted)">Sin abonos registrados. Usa “Registrar abono” cuando el cliente pague.</div>`}
       </div>
     </div>`;
 }
@@ -1432,7 +1475,37 @@ function addItem(otId, itemId){
   $('#item-form').onsubmit=e=>{ e.preventDefault(); save(); };
 }
 function eliminarItem(id){ const it=Store.get('items',id); if(!it) return; Store.remove('items',id); renderView(state.view); }
-function setEstadoPago(otId, estado){ Store.update('ots',otId,{estadoPago:estado}); renderView(state.view); toast('Pago: '+estado); }
+
+function addPago(otId){
+  const saldo=saldoOT(otId);
+  openModal('Registrar abono', `
+    <p style="margin:0 0 14px;color:var(--text-dim);font-size:13px">Saldo pendiente: <strong style="color:var(--text)">${formatCLP(saldo)}</strong></p>
+    <form id="pago-form">
+      <div class="form-row two">
+        <div><label class="lbl">Fecha</label>
+          <input class="input" name="fecha" type="date" value="${todayISO()}"></div>
+        <div><label class="lbl">Monto (CLP) <span class="req">*</span></label>
+          <input class="input" name="monto" type="number" min="0" value="${saldo>0?saldo:''}" placeholder="0"></div>
+      </div>
+      <div class="form-row">
+        <label class="lbl">Medio de pago</label>
+        <select class="select" name="medio">
+          ${MEDIOS_PAGO.map(m=>`<option>${m}</option>`).join('')}
+        </select>
+      </div>
+    </form>`,
+    `<button class="btn" data-close>Cancelar</button><button class="btn primary" id="pago-save">Registrar</button>`);
+  const save=()=>{
+    const f=$('#pago-form');
+    const monto=Number(f.monto.value)||0;
+    if(monto<=0){ toast('Ingresa el monto del abono'); return; }
+    Store.insert('pagos',{otId, fecha:f.fecha.value||todayISO(), monto, medio:f.medio.value});
+    closeModal(); renderView(state.view); toast('Abono registrado');
+  };
+  $('#pago-save').onclick=save;
+  $('#pago-form').onsubmit=e=>{ e.preventDefault(); save(); };
+}
+function eliminarPago(id){ const p=Store.get('pagos',id); if(!p) return; Store.remove('pagos',id); renderView(state.view); toast('Abono eliminado'); }
 
 function renderPresupuestos(){
   const el=$('#view-presupuestos');
@@ -1445,16 +1518,20 @@ function renderPresupuestos(){
   const fPago=state.params.pago||'';
   let ots=Store.all('ots').slice().sort((a,b)=>(b.fechaIngreso||'').localeCompare(a.fechaIngreso||''));
   if(fPago) ots=ots.filter(o=>estadoPagoOT(o)===fPago);
-  const porCobrar=Store.all('ots').filter(o=>estadoPagoOT(o)!=='Pagado').reduce((s,o)=>s+totalOT(o.id),0);
+  const allOts=Store.all('ots');
+  const porCobrar=allOts.reduce((s,o)=>{ const sa=saldoOT(o.id); return s+(sa>0?sa:0); },0);
+  const recaudado=allOts.reduce((s,o)=>s+abonadoOT(o.id),0);
+  const conSaldo=allOts.filter(o=>saldoOT(o.id)>0 && totalOT(o.id)>0).length;
   el.innerHTML=`
     <div class="stat-grid" style="grid-template-columns:repeat(auto-fit,minmax(190px,1fr))">
-      <div class="card stat"><div class="lbl"><span class="ic ic-orange">&#9203;</span> Por cobrar</div><div class="val" style="font-size:24px">${formatCLP(porCobrar)}</div><div class="foot">OTs no pagadas</div></div>
-      <div class="card stat"><div class="lbl"><span class="ic ic-green">&#9989;</span> Pagadas</div><div class="val">${Store.all('ots').filter(o=>estadoPagoOT(o)==='Pagado').length}</div><div class="foot">de ${Store.all('ots').length} OTs</div></div>
+      <div class="card stat"><div class="lbl"><span class="ic ic-orange">&#9203;</span> Por cobrar</div><div class="val" style="font-size:23px">${formatCLP(porCobrar)}</div><div class="foot">${conSaldo} OT(s) con saldo</div></div>
+      <div class="card stat"><div class="lbl"><span class="ic ic-green">&#128181;</span> Recaudado</div><div class="val" style="font-size:23px">${formatCLP(recaudado)}</div><div class="foot">total abonado</div></div>
+      <div class="card stat"><div class="lbl"><span class="ic ic-blue">&#9989;</span> Pagadas</div><div class="val">${allOts.filter(o=>estadoPagoOT(o)==='Pagado'&&totalOT(o.id)>0).length}</div><div class="foot">de ${allOts.length} OTs</div></div>
     </div>
     <div class="toolbar">
       <div class="field" style="min-width:180px">
         <select class="select" id="pago-filter">
-          <option value="">Todos los pagos</option>
+          <option value="">Todos los estados</option>
           ${['Pendiente','Parcial','Pagado'].map(e=>`<option value="${e}" ${e===fPago?'selected':''}>${e}</option>`).join('')}
         </select>
       </div>
@@ -1462,17 +1539,22 @@ function renderPresupuestos(){
     </div>
     <div class="card">
       <table>
-        <thead><tr><th>Folio</th><th>Moto / Dueño</th><th>Fecha</th><th>Total</th><th>Pago</th><th></th></tr></thead>
+        <thead><tr><th>Folio</th><th>Moto / Dueño</th><th>Total</th><th>Abonado</th><th>Saldo</th><th>Estado</th><th></th></tr></thead>
         <tbody>
           ${ots.map(o=>{
             const m=Store.get('motos',o.motoId), c=Store.get('clientes',o.clienteId);
+            const tot=totalOT(o.id), ab=abonadoOT(o.id), sa=tot-ab, est=estadoPagoOT(o);
             return `<tr style="cursor:pointer" onclick="navigate('ot-detail',{id:'${o.id}'})">
-              <td><span style="font-family:ui-monospace,monospace;font-weight:600">${esc(o.folio||'')}</span></td>
+              <td><span style="font-family:ui-monospace,monospace;font-weight:600">${esc(o.folio||'')}</span><div class="t-sub">${esc(o.fechaIngreso||'')}</div></td>
               <td><div class="t-main">${m?esc(m.marca+' '+m.modelo):'—'}</div><div class="t-sub">${esc(c?c.nombre:'—')}</div></td>
-              <td>${esc(o.fechaIngreso||'')}</td>
-              <td style="font-weight:700">${formatCLP(totalOT(o.id))}</td>
-              <td><span class="tag ${PAGO_CLASS[estadoPagoOT(o)]||'orange'}">${estadoPagoOT(o)}</span></td>
-              <td onclick="event.stopPropagation()"><button class="btn sm ghost" onclick="navigate('informe-doc',{id:'${o.id}'})">Informe</button></td>
+              <td style="font-weight:700">${formatCLP(tot)}</td>
+              <td style="color:var(--green)">${formatCLP(ab)}</td>
+              <td style="font-weight:700;color:${sa>0?'var(--accent-2)':'var(--text-dim)'}">${formatCLP(sa)}</td>
+              <td><span class="tag ${PAGO_CLASS[est]||'orange'}">${est}</span></td>
+              <td onclick="event.stopPropagation()"><div class="row-actions">
+                <button class="btn sm ghost" ${tot>0?'':'disabled'} onclick="addPago('${o.id}')">Abonar</button>
+                <button class="btn sm ghost" onclick="navigate('informe-doc',{id:'${o.id}'})">Informe</button>
+              </div></td>
             </tr>`;
           }).join('')}
         </tbody>
@@ -1519,14 +1601,16 @@ function renderInformes(){
 function whatsappInforme(otId){
   const o=Store.get('ots',otId); if(!o) return;
   const m=Store.get('motos',o.motoId), c=Store.get('clientes',o.clienteId), t=taller();
-  const items=itemsDeOT(otId), total=totalOT(otId);
+  const items=itemsDeOT(otId), total=totalOT(otId), abonado=abonadoOT(otId), saldo=total-abonado;
   const lineas=items.map(it=>`• ${it.descripcion}: ${formatCLP(it.monto)}`).join('\n');
   const txt=`*${t.nombre}*${t.mecanico?`\n${t.mecanico}`:''}\n\n`+
     `Informe de servicio ${o.folio||''}\n`+
     `Moto: ${m?`${m.marca} ${m.modelo}`:''}${m&&m.patente?` (${m.patente})`:''}\n`+
     `Fecha: ${o.fechaIngreso||''} · ${Number(o.kmIngreso||0).toLocaleString('es-CL')} km\n\n`+
     (lineas?`*Trabajos realizados:*\n${lineas}\n\n`:'')+
-    `*TOTAL: ${formatCLP(total)}*  (${estadoPagoOT(o)})\n`+
+    `*TOTAL: ${formatCLP(total)}*\n`+
+    (abonado>0?`Abonado: ${formatCLP(abonado)}\n`:'')+
+    `Saldo: ${formatCLP(saldo)} (${estadoPagoOT(o)})\n`+
     (o.observaciones?`\nObservaciones: ${o.observaciones}\n`:'')+
     (o.linkFotos?`\nFotos: ${o.linkFotos}\n`:'')+
     `\n¡Gracias por confiar en nosotros!`;
@@ -1539,7 +1623,7 @@ function renderInformeDoc(id){
   const o=Store.get('ots',id), el=$('#view-informe-doc');
   if(!o){ el.innerHTML=`<div class="card empty"><h3>OT no encontrada</h3><button class="btn" onclick="navigate('informes')">Volver</button></div>`; return; }
   const m=Store.get('motos',o.motoId), c=Store.get('clientes',o.clienteId), t=taller();
-  const tareas=tareasDeOT(id), items=itemsDeOT(id), total=totalOT(id);
+  const tareas=tareasDeOT(id), items=itemsDeOT(id), total=totalOT(id), abonado=abonadoOT(id), saldo=total-abonado;
 
   $('#topbar-action').innerHTML=`
     <button class="btn ghost" onclick="navigate('informes')">&#8592; Volver</button>
@@ -1577,7 +1661,11 @@ function renderInformeDoc(id){
             <tbody>
               ${items.length? items.map(it=>`<tr><td>${esc(it.descripcion)}</td><td class="num">${formatCLP(it.monto)}</td></tr>`).join('') : `<tr><td colspan="2" style="color:#888">Sin ítems</td></tr>`}
             </tbody>
-            <tfoot><tr><td style="text-align:center;font-weight:800">TOTAL</td><td class="num" style="font-weight:800">${formatCLP(total)}</td></tr></tfoot>
+            <tfoot>
+              <tr><td style="text-align:right;font-weight:800">TOTAL</td><td class="num" style="font-weight:800">${formatCLP(total)}</td></tr>
+              ${abonado>0?`<tr><td style="text-align:right">Abonado</td><td class="num">${formatCLP(abonado)}</td></tr>
+              <tr><td style="text-align:right;font-weight:800">SALDO</td><td class="num" style="font-weight:800">${formatCLP(saldo)}</td></tr>`:''}
+            </tfoot>
           </table>
           <div style="text-align:right;margin-top:6px;font-size:12px;color:#555">Estado de pago: <b>${estadoPagoOT(o)}</b></div>
         </div>
@@ -1633,7 +1721,7 @@ function openTallerConfig(){
 const GS = {
   token:null, tokenExpiry:null, clientId:'', sheetId:'',
   SCOPES:'https://www.googleapis.com/auth/spreadsheets',
-  SHEETS:['Clientes','Motos','OTs','Tareas','Items','Config'],
+  SHEETS:['Clientes','Motos','OTs','Tareas','Items','Pagos','Config'],
 };
 const GS_HEADERS = {
   Clientes:['id','nombre','rut','telefono','email','createdAt'],
@@ -1641,6 +1729,7 @@ const GS_HEADERS = {
   OTs:['id','motoId','clienteId','folio','tipo','estado','estadoPago','kmIngreso','mecanico','fechaIngreso','fechaEntrega','descripcion','observaciones','linkFotos','createdAt'],
   Tareas:['id','otId','descripcion','indicacion','hecha','comentario','createdAt'],
   Items:['id','otId','descripcion','monto','createdAt'],
+  Pagos:['id','otId','fecha','monto','medio','createdAt'],
   Config:['key','value'],
 };
 function gsCell(v){ if(v===undefined||v===null) return ''; if(typeof v==='object') return JSON.stringify(v); return String(v); }
@@ -1651,6 +1740,7 @@ function parseColeccion(col, rows){
   if(col==='ots') rows.forEach(o=>{ o.kmIngreso=Number(o.kmIngreso)||0; });
   if(col==='tareas') rows.forEach(t=>{ t.hecha=(t.hecha===true||t.hecha==='true'||t.hecha==='TRUE'); });
   if(col==='items') rows.forEach(it=>{ it.monto=Number(it.monto)||0; });
+  if(col==='pagos') rows.forEach(p=>{ p.monto=Number(p.monto)||0; });
   return rows;
 }
 
@@ -1718,6 +1808,7 @@ async function gsUploadAll(){
       gsWriteSheet('OTs',      Store.all('ots'),      GS_HEADERS.OTs),
       gsWriteSheet('Tareas',   Store.all('tareas'),   GS_HEADERS.Tareas),
       gsWriteSheet('Items',    Store.all('items'),    GS_HEADERS.Items),
+      gsWriteSheet('Pagos',    Store.all('pagos'),    GS_HEADERS.Pagos),
       gsWriteSheet('Config', [
         {key:'tallerNombre',   value:cfg.nombre||''},
         {key:'tallerMecanico', value:cfg.mecanico||''},
@@ -1735,20 +1826,22 @@ async function gsLoadAll(){
   if(!confirm('Esto reemplazará los datos de ESTE dispositivo con los de Google Sheets. ¿Continuar?')) return;
   syncStatus('Cargando datos desde Google Sheets…','info');
   try{
-    const [cl,mo,ot,ta,it,cf]=await Promise.all([
+    const [cl,mo,ot,ta,it,pg,cf]=await Promise.all([
       gsReadSheet('Clientes',GS_HEADERS.Clientes),
       gsReadSheet('Motos',   GS_HEADERS.Motos),
       gsReadSheet('OTs',     GS_HEADERS.OTs),
       gsReadSheet('Tareas',  GS_HEADERS.Tareas),
       gsReadSheet('Items',   GS_HEADERS.Items),
+      gsReadSheet('Pagos',   GS_HEADERS.Pagos),
       gsReadSheet('Config',  GS_HEADERS.Config),
     ]);
-    parseColeccion('motos',mo); parseColeccion('ots',ot); parseColeccion('tareas',ta); parseColeccion('items',it);
+    parseColeccion('motos',mo); parseColeccion('ots',ot); parseColeccion('tareas',ta); parseColeccion('items',it); parseColeccion('pagos',pg);
     Store.data.clientes=cl.filter(x=>x.id);
     Store.data.motos   =mo.filter(x=>x.id);
     Store.data.ots     =ot.filter(x=>x.id);
     Store.data.tareas  =ta.filter(x=>x.id);
     Store.data.items   =it.filter(x=>x.id);
+    Store.data.pagos   =pg.filter(x=>x.id);
     const cm={}; cf.forEach(r=>{ cm[r.key]=r.value; });
     Store.data.config=Object.assign({}, Store.data.config, {
       nombre:   cm.tallerNombre   || Store.data.config.nombre || '',
@@ -1841,7 +1934,7 @@ function initGS(){ gsLoadConfig(); updateSyncPill(); }
 function borrarTodo(){
   if(!confirm('Esto borrará TODOS los clientes, motos, órdenes, tareas y presupuestos de este dispositivo. Tus datos del taller y la conexión con Google se mantienen. ¿Continuar?')) return;
   if(!confirm('Última confirmación: esta acción no se puede deshacer. ¿Borrar todo?')) return;
-  Store.data.clientes=[]; Store.data.motos=[]; Store.data.ots=[]; Store.data.tareas=[]; Store.data.items=[];
+  Store.data.clientes=[]; Store.data.motos=[]; Store.data.ots=[]; Store.data.tareas=[]; Store.data.items=[]; Store.data.pagos=[];
   Store.save(); refreshCounts();
   if(state.view==='sync') renderSync();
   toast('Datos borrados. Para dejar la planilla también vacía, usa "Subir todo a Sheets".');
@@ -1864,6 +1957,9 @@ function seedDemo(){
   Store.insert('tareas',{otId:o2.id,descripcion:'Cambio de batería',indicacion:'Reemplazo y prueba de carga',hecha:true,comentario:'Batería 12V nueva'});
   Store.insert('items',{otId:o2.id,descripcion:'Diagnóstico eléctrico (mano de obra)',monto:25000});
   Store.insert('items',{otId:o2.id,descripcion:'Batería 12V',monto:48000});
+  // Abonos de ejemplo: o1 con un abono parcial; o2 pagada por completo
+  Store.insert('pagos',{otId:o1.id,fecha:todayISO(),monto:50000,medio:'Transferencia'});
+  Store.insert('pagos',{otId:o2.id,fecha:'2026-05-12',monto:73000,medio:'Efectivo'});
   Store.save();
 }
 
