@@ -499,7 +499,7 @@ function refreshCounts(){
 /* ------------------------------- Modal --------------------------------- */
 function openModal(title, bodyHTML, footHTML){
   $('#modal-root').innerHTML = `
-    <div class="modal-overlay" data-close>
+    <div class="modal-overlay">
       <div class="modal" role="dialog" aria-modal="true">
         <div class="modal-head">
           <h3>${esc(title)}</h3>
@@ -512,7 +512,12 @@ function openModal(title, bodyHTML, footHTML){
   $('#modal-root').classList.add('open');
 }
 function closeModal(){ const r=$('#modal-root'); r.classList.remove('open'); r.innerHTML=''; }
-document.addEventListener('click',e=>{ if(e.target.closest('[data-close]')) closeModal(); });
+document.addEventListener('click',e=>{
+  // Cerrar solo al hacer clic en el fondo oscuro, o en un botón marcado con data-close.
+  // (Antes el overlay tenía data-close y, al envolver el formulario, cualquier clic dentro cerraba el modal.)
+  if(e.target.classList && e.target.classList.contains('modal-overlay')){ closeModal(); return; }
+  if(e.target.closest('[data-close]')) closeModal();
+});
 document.addEventListener('keydown',e=>{ if(e.key==='Escape') closeModal(); });
 
 function confirmDialog(msg, onYes, yesLabel='Eliminar'){
@@ -1816,10 +1821,31 @@ function renderSync(){
         4. Pega el Client ID y el link aquí arriba, guarda y conéctate.<br>
         <span style="color:var(--accent-2)">Si esta app vive en el mismo dominio que Nexa (tu-usuario.github.io), puedes reutilizar el mismo Client ID.</span>
       </div>
+    </div>
+
+    <div class="card" style="border-color:rgba(239,68,68,.4)">
+      <div class="panel-head"><h3 style="color:var(--red)">Zona de peligro</h3></div>
+      <div style="padding:18px;display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap">
+        <div style="color:var(--text-dim);font-size:12.5px;line-height:1.6;max-width:520px">
+          Borra todos los clientes, motos, órdenes, tareas y presupuestos de <strong>este dispositivo</strong> para empezar de cero (útil tras las pruebas). Se mantienen los datos del taller y la conexión con Google. Para vaciar también la planilla, luego usa “Subir todo a Sheets”.
+        </div>
+        <button class="btn danger" style="border:1px solid rgba(239,68,68,.5)" onclick="borrarTodo()">Borrar todo</button>
+      </div>
     </div>`;
   updateSyncPill();
 }
 function initGS(){ gsLoadConfig(); updateSyncPill(); }
+
+/* Borrar todos los datos locales (clientes/motos/OTs/tareas/items).
+   Conserva la config del taller y las credenciales de Google. */
+function borrarTodo(){
+  if(!confirm('Esto borrará TODOS los clientes, motos, órdenes, tareas y presupuestos de este dispositivo. Tus datos del taller y la conexión con Google se mantienen. ¿Continuar?')) return;
+  if(!confirm('Última confirmación: esta acción no se puede deshacer. ¿Borrar todo?')) return;
+  Store.data.clientes=[]; Store.data.motos=[]; Store.data.ots=[]; Store.data.tareas=[]; Store.data.items=[];
+  Store.save(); refreshCounts();
+  if(state.view==='sync') renderSync();
+  toast('Datos borrados. Para dejar la planilla también vacía, usa "Subir todo a Sheets".');
+}
 
 /* ============================ DATOS DEMO =============================== */
 function seedDemo(){
