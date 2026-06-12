@@ -6,6 +6,7 @@
 <title>Taller Motos — Gestión</title>
 <script src="https://accounts.google.com/gsi/client" async defer></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
   /* ===================== Tema / variables ===================== */
@@ -196,6 +197,68 @@
 
   .panel-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
   @media(max-width:880px){.panel-grid{grid-template-columns:1fr}}
+
+  /* ===================== Botón hamburguesa + backdrop ===================== */
+  .menu-btn{
+    display:none;background:transparent;border:1px solid var(--border);color:var(--text);
+    width:38px;height:38px;border-radius:9px;cursor:pointer;font-size:20px;line-height:1;
+    align-items:center;justify-content:center;flex:none;
+  }
+  .menu-btn:hover{background:var(--surface-2)}
+  .sidebar-backdrop{
+    display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:99;backdrop-filter:blur(2px);
+  }
+  .sidebar-backdrop.open{display:block}
+
+  /* ===================== Móvil (≤820px) ===================== */
+  @media(max-width:820px){
+    /* Sidebar como cajón deslizante */
+    .sidebar{
+      position:fixed;left:-280px;top:0;height:100vh;width:262px;min-width:0;
+      transition:left .24s ease;z-index:100;box-shadow:0 0 28px rgba(0,0,0,.4);
+    }
+    .sidebar.open{left:0}
+    .content{margin:0}
+    .menu-btn{display:inline-flex}
+    /* Topbar más compacto y botones de acción con wrap */
+    .topbar{padding:12px 14px;gap:10px}
+    .topbar h2{font-size:17px}
+    .topbar .sub{font-size:11.5px}
+    #topbar-action{display:flex;flex-wrap:wrap;gap:6px;justify-content:flex-end}
+    #topbar-action .btn{padding:7px 11px;font-size:12.5px}
+    /* Espacios y vistas */
+    .view-wrap{padding:14px 12px 60px}
+    .stat-grid{grid-template-columns:1fr 1fr;gap:10px}
+    .stat .val{font-size:24px}
+    /* Tablas: el card permite scroll horizontal */
+    .card{overflow-x:auto;-webkit-overflow-scrolling:touch}
+    .card table{min-width:560px}
+    thead th,tbody td{padding:9px 10px}
+    /* Formularios: columnas de a 1 en móvil */
+    .form-row.two{grid-template-columns:1fr}
+    .modal{width:100%;border-radius:12px}
+    /* Detalle / encabezados */
+    .detail-head{padding:14px;gap:12px}
+    .detail-head h2{font-size:18px}
+    .km-badge{font-size:13px}
+    .spec-grid{grid-template-columns:1fr 1fr}
+    /* Informe: hoja a una columna */
+    .paper{padding:18px 14px;font-size:12.5px}
+    .paper-head{flex-direction:column;align-items:flex-start;gap:10px}
+    .paper-logo{max-height:54px}
+    .paper-title{font-size:21px}
+    .paper-cols{grid-template-columns:1fr}
+    .paper-check{font-size:10.5px}
+    .paper-check th,.paper-check td{padding:4px 6px}
+    /* Modales scrollables */
+    .modal-body{max-height:65vh}
+  }
+  @media(max-width:480px){
+    .stat-grid{grid-template-columns:1fr}
+    .spec-grid{grid-template-columns:1fr}
+    .pt-row{grid-template-columns:1fr !important;gap:4px}
+    .pt-row .pt-c{max-width:120px}
+  }
   .panel-head{display:flex;align-items:center;justify-content:space-between;padding:15px 18px;border-bottom:1px solid var(--border)}
   .panel-head h3{margin:0;font-size:14.5px;font-weight:700}
 
@@ -245,7 +308,9 @@
 
   /* ===================== Informe (hoja imprimible) ===================== */
   .paper{background:#fff;color:#15233f;border-radius:10px;max-width:980px;margin:0 auto;padding:30px 34px;box-shadow:var(--shadow);font-size:13px}
-  .paper-head{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:3px solid #15233f;padding-bottom:14px;margin-bottom:16px}
+  .paper-head{display:flex;justify-content:space-between;align-items:flex-start;gap:14px;border-bottom:3px solid #15233f;padding-bottom:14px;margin-bottom:16px}
+  .paper-logo{max-height:64px;width:auto;flex:none;border-radius:6px}
+  .paper-titlebox{flex:1;min-width:0}
   .paper-title{font-size:26px;font-weight:800;letter-spacing:-.5px}
   .paper-date{color:#555;font-size:12px;margin-top:4px}
   .paper-cols{display:grid;grid-template-columns:1fr 1.6fr;gap:18px;margin-bottom:18px}
@@ -310,6 +375,7 @@
       <button class="nav-item" data-view="tareas"><span class="ic">&#9989;</span> Tareas</button>
       <button class="nav-item" data-view="presupuestos"><span class="ic">&#128181;</span> Presupuestos</button>
       <button class="nav-item" data-view="informes"><span class="ic">&#128228;</span> Informes</button>
+      <button class="nav-item" data-view="recordatorios"><span class="ic">&#9200;</span> Recordatorios</button>
 
       <div class="nav-group-label">Catálogo</div>
       <button class="nav-item" data-view="planes"><span class="ic">&#128203;</span> Planes de mantención</button>
@@ -319,13 +385,15 @@
     </nav>
     <div class="sidebar-foot">
       <button class="nav-item" style="margin-bottom:8px" onclick="openTallerConfig()"><span class="ic">&#9881;</span> Datos del taller</button>
-      <span class="sync-pill" id="sync-pill" style="cursor:pointer" onclick="navigate('sync')"><span class="dot"></span> Solo local (sin sync)</span>
+      <span class="sync-pill" id="sync-pill" style="cursor:pointer" onclick="navigate('sync');toggleSidebar(false)"><span class="dot"></span> Solo local (sin sync)</span>
     </div>
   </aside>
+  <div class="sidebar-backdrop" id="sidebar-backdrop" onclick="toggleSidebar(false)"></div>
 
   <!-- ============ CONTENIDO ============ -->
   <div class="content">
     <header class="topbar">
+      <button class="menu-btn" id="menu-btn" aria-label="Menú" onclick="toggleSidebar()">&#9776;</button>
       <div>
         <h2 id="view-title">Dashboard</h2>
         <div class="sub" id="view-sub">Resumen del taller</div>
@@ -355,6 +423,7 @@
       <section id="view-sync" class="view"></section>
       <section id="view-planes" class="view"></section>
       <section id="view-plan-detail" class="view"></section>
+      <section id="view-recordatorios" class="view"></section>
     </div>
   </div>
 </div>
@@ -482,6 +551,7 @@ const TITLES = {
   sync:['Sincronización','Respaldo y datos compartidos con Google Sheets'],
   planes:['Planes de mantención','Servicios por modelo y sus tareas'],
   'plan-detail':['Plan de mantención','Servicios del modelo'],
+  recordatorios:['Recordatorios de mantención','Motos cerca o vencidas de su próximo servicio'],
 };
 const NAV_FOR = { 'moto-detail':'motos', 'ot-detail':'ot', 'informe-doc':'informes', 'plan-detail':'planes' }; // qué item del menú resaltar
 
@@ -517,6 +587,7 @@ function renderView(view){
     case 'sync':        renderSync(); break;
     case 'planes':      renderPlanes(); break;
     case 'plan-detail': renderPlanDetail(state.params.id); break;
+    case 'recordatorios': renderRecordatorios(); break;
   }
   refreshCounts();
 }
@@ -687,6 +758,7 @@ function renderClientes(){
               <td><span class="tag ${nMotos?'orange':'gray'}">${nMotos}</span></td>
               <td><div class="row-actions">
                 <button class="btn sm ghost" onclick="navigate('motos',{clienteId:'${c.id}'})">Ver motos</button>
+                ${c.email?`<button class="btn sm ghost" onclick="openAvisoCliente('${c.id}')" title="Enviar correo">&#9993;</button>`:''}
                 <button class="btn sm ghost" onclick="openClienteForm('${c.id}')">Editar</button>
                 <button class="btn sm danger" onclick="eliminarCliente('${c.id}')">Eliminar</button>
               </div></td>
@@ -1716,6 +1788,122 @@ function whatsappInforme(otId){
   window.open('https://wa.me/'+phone+'?text='+encodeURIComponent(txt),'_blank');
 }
 
+/* Envía un correo libre (aviso manual) al email del cliente. Sin adjuntos. */
+function openAvisoCliente(clienteId){
+  const c=Store.get('clientes',clienteId); if(!c||!c.email){ toast('El cliente no tiene email'); return; }
+  if(!gsIsSignedIn()){ toast('Conéctate con Google en Sincronización para enviar correos'); return; }
+  const t=taller();
+  openModal('Enviar correo a '+c.nombre, `
+    <form id="aviso-form">
+      <div class="form-row"><label class="lbl">Para</label><input class="input" name="to" value="${esc(c.email)}"></div>
+      <div class="form-row"><label class="lbl">Asunto</label><input class="input" name="subject" placeholder="Ej: Tu moto está lista"></div>
+      <div class="form-row"><label class="lbl">Mensaje</label>
+        <textarea class="input" name="body" rows="8" style="resize:vertical" placeholder="Hola ${esc(c.nombre)},&#10;&#10;...">Hola ${esc(c.nombre)},
+
+</textarea></div>
+      <div class="hint">El correo sale desde tu Gmail. Sin adjuntos en este envío.</div>
+    </form>`,
+    `<button class="btn" data-close>Cancelar</button><button class="btn primary" id="aviso-send">Enviar</button>`);
+  $('#aviso-send').onclick=async()=>{
+    const f=$('#aviso-form');
+    const to=f.to.value.trim(), subj=f.subject.value.trim(), body=f.body.value+'\n\n'+(t.mecanico||t.nombre||'')+(t.telefono?'\n'+t.telefono:'');
+    if(!to||!subj){ toast('Falta destinatario o asunto'); return; }
+    $('#aviso-send').disabled=true; $('#aviso-send').textContent='Enviando…';
+    try{ await gmailSend(to, subj, body, []); closeModal(); toast('✓ Correo enviado'); }
+    catch(err){ $('#aviso-send').disabled=false; $('#aviso-send').textContent='Enviar'; toast('Error: '+err.message); }
+  };
+}
+
+/* Descarga el informe como PDF A4. Requiere estar en la vista del informe (necesita el .paper en el DOM). */
+function descargarInformePDF(otId){
+  if(!window.html2pdf){ toast('La librería de PDF aún no terminó de cargar. Reintenta en un par de segundos.'); return Promise.reject('html2pdf no cargado'); }
+  const o=Store.get('ots',otId); if(!o){ toast('OT no encontrada'); return Promise.reject('OT no encontrada'); }
+  const el=document.getElementById('informe-paper');
+  if(!el){ toast('Abre el informe primero (botón Informe en la OT).'); return Promise.reject('paper no presente'); }
+  const m=Store.get('motos',o.motoId);
+  const nombreArch=('Informe '+(o.folio||'')+(m?' - '+m.marca+' '+m.modelo:'')).replace(/[\\/:*?"<>|]/g,'').trim()+'.pdf';
+  toast('Generando PDF…');
+  return html2pdf().set({
+    margin:[8,8,12,8],
+    filename:nombreArch,
+    image:{type:'jpeg', quality:0.95},
+    html2canvas:{scale:2, useCORS:true, backgroundColor:'#ffffff'},
+    jsPDF:{unit:'mm', format:'a4', orientation:'portrait'},
+    pagebreak:{mode:['avoid-all','css','legacy']},
+  }).from(el).save();
+}
+
+/* Envía el informe por CORREO con PDF adjunto vía Gmail API. */
+async function enviarInformePorCorreo(otId){
+  const o=Store.get('ots',otId); if(!o){ toast('OT no encontrada'); return; }
+  if(!gsIsSignedIn()){ toast('Conéctate con Google en Sincronización (se pide permiso de Gmail al reconectar)'); return; }
+  const c=Store.get('clientes',o.clienteId);
+  if(!c||!c.email){ toast('El cliente no tiene email registrado'); return; }
+  const el=document.getElementById('informe-paper');
+  if(!el){ toast('Abre el informe primero'); return; }
+  const m=Store.get('motos',o.motoId), t=taller();
+  const esCot=(o.estado||'')==='Recibida';
+  const tituloDoc = esCot?'Cotización':'Informe de servicio';
+  // Modal de confirmación con campos editables
+  const total=totalOT(otId), abonado=abonadoOT(otId), saldo=total-abonado;
+  const subjDef = `${tituloDoc} ${o.folio||''}${m?` — ${m.marca} ${m.modelo}`:''}`;
+  const bodyDef = `Hola ${c.nombre||''},\n\nTe adjunto el ${esCot?'detalle de la cotización para tu':'informe del servicio realizado a tu'} ${m?m.marca+' '+m.modelo:'moto'}.\n\nTOTAL: ${formatCLP(total)}${abonado>0?`\nAbonado: ${formatCLP(abonado)}\nSaldo: ${formatCLP(saldo)}`:''}\nEstado de pago: ${estadoPagoOT(o)}\n${esCot?'\nQuedo atento a tu confirmación para realizar el trabajo.\n':''}\nCualquier consulta, escríbeme.\nSaludos,\n${t.mecanico||t.nombre||''}${t.telefono?'\n'+t.telefono:''}`;
+  openModal('Enviar '+tituloDoc.toLowerCase()+' por correo', `
+    <form id="mail-form">
+      <div class="form-row"><label class="lbl">Para</label>
+        <input class="input" name="to" value="${esc(c.email)}"></div>
+      <div class="form-row"><label class="lbl">Asunto</label>
+        <input class="input" name="subject" value="${esc(subjDef)}"></div>
+      <div class="form-row"><label class="lbl">Mensaje</label>
+        <textarea class="input" name="body" rows="9" style="resize:vertical">${esc(bodyDef)}</textarea></div>
+      <div class="hint">Se adjunta el PDF del ${tituloDoc.toLowerCase()} automáticamente. El correo sale desde tu Gmail.</div>
+    </form>`,
+    `<button class="btn" data-close>Cancelar</button><button class="btn primary" id="mail-send">Enviar</button>`);
+  $('#mail-send').onclick=async()=>{
+    const f=$('#mail-form');
+    const to=f.to.value.trim(), subj=f.subject.value.trim(), body=f.body.value;
+    if(!to){ toast('Falta el destinatario'); return; }
+    $('#mail-send').disabled=true; $('#mail-send').textContent='Enviando…';
+    try{
+      const blob = await html2pdf().set({
+        margin:[8,8,12,8], filename:'informe.pdf',
+        image:{type:'jpeg',quality:0.95},
+        html2canvas:{scale:2,useCORS:true,backgroundColor:'#ffffff'},
+        jsPDF:{unit:'mm',format:'a4',orientation:'portrait'},
+        pagebreak:{mode:['avoid-all','css','legacy']},
+      }).from(el).outputPdf('blob');
+      const b64 = await blobToBase64(blob);
+      const filename = (tituloDoc+' '+(o.folio||'')+(m?' - '+m.marca+' '+m.modelo:'')).replace(/[\\/:*?"<>|]/g,'').trim()+'.pdf';
+      await gmailSend(to, subj, body, [{filename, type:'application/pdf', base64:b64}]);
+      closeModal();
+      toast('✓ Correo enviado a '+to);
+    }catch(err){
+      $('#mail-send').disabled=false; $('#mail-send').textContent='Enviar';
+      toast('Error: '+err.message);
+    }
+  };
+}
+
+/* Envío por WhatsApp del informe: dispara la descarga del PDF + abre wa.me con un texto
+   que recuerda al cliente que el PDF va adjunto (debe adjuntarse manualmente en WhatsApp). */
+async function enviarPorWhatsApp(otId){
+  try{ await descargarInformePDF(otId); }catch(e){ /* sigue igual si falla la descarga */ }
+  // Pequeña espera para que la descarga arranque antes de cambiar de pestaña
+  setTimeout(()=>{
+    const o=Store.get('ots',otId); if(!o) return;
+    const m=Store.get('motos',o.motoId), c=Store.get('clientes',o.clienteId), t=taller();
+    const total=totalOT(otId), abonado=abonadoOT(otId), saldo=total-abonado;
+    const txt=`*${t.nombre}*${t.mecanico?`\n${t.mecanico}`:''}\n\n`+
+      `Informe de servicio ${o.folio||''}\n`+
+      `Moto: ${m?`${m.marca} ${m.modelo}`:''}${m&&m.patente?` (${m.patente})`:''}\n`+
+      `Fecha: ${o.fechaIngreso||''}\n\n`+
+      `*TOTAL: ${formatCLP(total)}*\n`+(abonado>0?`Abonado: ${formatCLP(abonado)}\nSaldo: ${formatCLP(saldo)} (${estadoPagoOT(o)})\n`:`(${estadoPagoOT(o)})\n`)+
+      `\nTe envío el informe completo en PDF adjunto.\n¡Gracias por confiar en nosotros!`;
+    const phone=telWa(c?c.telefono:'');
+    window.open('https://wa.me/'+phone+'?text='+encodeURIComponent(txt),'_blank');
+  }, 1200);
+}
+
 /* ---- Documento de informe imprimible (Ficha de Servicio) ---- */
 function renderInformeDoc(id){
   const o=Store.get('ots',id), el=$('#view-informe-doc');
@@ -1723,18 +1911,25 @@ function renderInformeDoc(id){
   const m=Store.get('motos',o.motoId), c=Store.get('clientes',o.clienteId), t=taller();
   const tareas=tareasDeOT(id), items=itemsDeOT(id), total=totalOT(id), abonado=abonadoOT(id), saldo=total-abonado;
 
+  const esCot=(o.estado||'')==='Recibida';
+  const tituloDoc = esCot ? 'COTIZACIÓN' : (t.nombre||'Ficha de Servicio');
+  const trabajosTitulo = esCot ? 'TRABAJOS A REALIZAR' : 'TRABAJOS REALIZADOS';
+
   $('#topbar-action').innerHTML=`
     <button class="btn ghost" onclick="navigate('informes')">&#8592; Volver</button>
     <button class="btn" onclick="openTallerConfig()">&#9881; Taller</button>
-    <button class="btn" onclick="window.print()">&#128424; Imprimir / PDF</button>
-    <button class="btn primary" style="background:#25D366;box-shadow:none" onclick="whatsappInforme('${o.id}')">WhatsApp</button>`;
+    <button class="btn" onclick="window.print()">&#128424; Imprimir</button>
+    <button class="btn" onclick="descargarInformePDF('${o.id}')">&#128229; Descargar PDF</button>
+    <button class="btn primary" onclick="enviarInformePorCorreo('${o.id}')">&#9993; Correo</button>
+    <button class="btn" style="background:#25D366;color:#fff;border:none" onclick="enviarPorWhatsApp('${o.id}')">WhatsApp</button>`;
 
   el.innerHTML=`
     <div class="paper" id="informe-paper">
       <div class="paper-head">
-        <div>
-          <div class="paper-title">${esc(t.nombre||'Ficha de Servicio')}</div>
-          <div class="paper-date">${esc(o.fechaIngreso||'')} &nbsp;·&nbsp; Folio ${esc(o.folio||'')}</div>
+        <img src="logo.png" alt="" class="paper-logo" onerror="this.style.display='none'">
+        <div class="paper-titlebox">
+          <div class="paper-title">${esc(tituloDoc)}</div>
+          <div class="paper-date">${esc(o.fechaIngreso||'')} &nbsp;·&nbsp; Folio ${esc(o.folio||'')}${esCot?' &nbsp;·&nbsp; <em>sujeto a aprobación del cliente</em>':''}</div>
         </div>
         <div style="text-align:right">
           <div style="font-weight:800">Mecánico</div>
@@ -1755,7 +1950,7 @@ function renderInformeDoc(id){
         </div>
         <div class="paper-trab">
           <table class="paper-tbl">
-            <thead><tr><th colspan="2" style="text-align:center">TRABAJOS REALIZADOS</th></tr></thead>
+            <thead><tr><th colspan="2" style="text-align:center">${trabajosTitulo}</th></tr></thead>
             <tbody>
               ${items.length? items.map(it=>`<tr><td>${esc(it.descripcion)}</td><td class="num">${formatCLP(it.monto)}</td></tr>`).join('') : `<tr><td colspan="2" style="color:#888">Sin ítems</td></tr>`}
             </tbody>
@@ -1809,6 +2004,94 @@ function openTallerConfig(){
   };
   $('#cfg-save').onclick=save;
   $('#cfg-form').onsubmit=e=>{ e.preventDefault(); save(); };
+}
+
+/* ===================== RECORDATORIOS DE MANTENCIÓN ==================== */
+/* Calcula la próxima mantención: km del último servicio + intervalo base del plan. */
+function proximaMantencion(motoId){
+  const m=Store.get('motos',motoId); if(!m) return null;
+  const ots=Store.all('ots').filter(o=>o.motoId===motoId && o.tipo==='Mantención Preventiva')
+    .sort((a,b)=>(b.fechaIngreso||'').localeCompare(a.fechaIngreso||''));
+  if(!ots.length) return null;
+  const ultima=ots[0];
+  const plan=planDeModelo(m.marca, m.modelo);
+  if(!plan||!Number(plan.intervaloBase)) return null;
+  const proxKm=(Number(ultima.kmIngreso)||0)+(Number(plan.intervaloBase)||0);
+  const actual=Number(m.kmActual)||0;
+  return { ultima, plan, proxKm, restante: proxKm - actual };
+}
+
+function renderRecordatorios(){
+  const el=$('#view-recordatorios');
+  $('#topbar-action').innerHTML='';
+  const items=[];
+  Store.all('motos').forEach(m=>{
+    const x=proximaMantencion(m.id);
+    if(!x) return;
+    items.push({m, c:Store.get('clientes',m.clienteId), ...x});
+  });
+  items.sort((a,b)=>a.restante-b.restante);
+  const vencidas=items.filter(x=>x.restante<=0).length;
+  const cercanas=items.filter(x=>x.restante>0 && x.restante<=3000).length;
+  el.innerHTML=`
+    <div class="card" style="padding:14px 18px;margin-bottom:16px;color:var(--text-dim);font-size:13px;line-height:1.6">
+      Motos cerca o pasadas de su próxima mantención (km del último servicio + intervalo base del plan). Solo muestra motos con plan y con al menos un servicio previo registrado.
+    </div>
+    <div class="stat-grid" style="grid-template-columns:repeat(auto-fit,minmax(170px,1fr))">
+      <div class="card stat"><div class="lbl"><span class="ic ic-orange">&#9203;</span> Vencidas</div><div class="val">${vencidas}</div></div>
+      <div class="card stat"><div class="lbl"><span class="ic ic-blue">&#128340;</span> Cercanas (≤3.000 km)</div><div class="val">${cercanas}</div></div>
+      <div class="card stat"><div class="lbl"><span class="ic ic-green">&#127949;</span> Total con plan</div><div class="val">${items.length}</div><div class="foot">de ${Store.all('motos').length} motos</div></div>
+    </div>
+    ${items.length?`<div class="card"><table>
+      <thead><tr><th>Moto</th><th>Dueño</th><th>Último servicio</th><th>Próximo (km)</th><th>Falta</th><th></th></tr></thead>
+      <tbody>${items.map(x=>{
+        const vencida=x.restante<=0, cerca=x.restante>0 && x.restante<=3000;
+        const tag = vencida?'amber':(cerca?'orange':'gray');
+        const lbl = vencida?'Vencida':(cerca?'Cerca':'futura');
+        const falta = x.restante>=0
+          ? `<span style="font-weight:700">${x.restante.toLocaleString('es-CL')} km</span>`
+          : `<span style="font-weight:700;color:var(--red)">vencida hace ${(-x.restante).toLocaleString('es-CL')} km</span>`;
+        return `<tr>
+          <td><div class="t-main">${esc(x.m.marca+' '+x.m.modelo)}</div><div class="t-sub">${esc(x.m.patente||'')} · ${Number(x.m.kmActual||0).toLocaleString('es-CL')} km</div></td>
+          <td><div class="t-main">${esc(x.c?x.c.nombre:'—')}</div><div class="t-sub">${esc(x.c?(x.c.email||'sin email'):'')}</div></td>
+          <td>${esc(x.ultima.fechaIngreso||'')}<div class="t-sub">${Number(x.ultima.kmIngreso||0).toLocaleString('es-CL')} km</div></td>
+          <td style="font-weight:700">${Number(x.proxKm).toLocaleString('es-CL')}</td>
+          <td><span class="tag ${tag}">${lbl}</span><div style="margin-top:3px">${falta}</div></td>
+          <td>${(x.c&&x.c.email)?`<button class="btn sm primary" onclick="enviarRecordatorio('${x.m.id}')">Enviar</button>`:'<span style="color:var(--muted);font-size:12px">sin email</span>'}</td>
+        </tr>`;
+      }).join('')}</tbody></table></div>`
+      :`<div class="card empty"><div class="big">&#9200;</div><h3>Sin recordatorios disponibles</h3><p>Se calculan a partir del último servicio de cada moto y el intervalo base de su plan. Cuando registres servicios y planes, aparecerán aquí.</p></div>`}`;
+}
+
+function enviarRecordatorio(motoId){
+  const x=proximaMantencion(motoId); if(!x){ toast('No se puede calcular el próximo servicio'); return; }
+  const m=Store.get('motos',motoId), c=Store.get('clientes',m.clienteId);
+  if(!c||!c.email){ toast('El cliente no tiene email'); return; }
+  if(!gsIsSignedIn()){ toast('Conéctate con Google en Sincronización'); return; }
+  const t=taller(), vencida=x.restante<=0;
+  const subjDef = vencida
+    ? `Recordatorio: mantención vencida — ${m.marca} ${m.modelo}`
+    : `Próxima mantención de tu ${m.marca} ${m.modelo}`;
+  const bodyDef = `Hola ${c.nombre||''},\n\n`+
+    (vencida
+      ? `Te escribo porque tu ${m.marca} ${m.modelo} (${m.patente||''}) tiene mantención VENCIDA: ya superaste por ${(-x.restante).toLocaleString('es-CL')} km el próximo servicio que tocaba a los ${Number(x.proxKm).toLocaleString('es-CL')} km.`
+      : `Te aviso que a tu ${m.marca} ${m.modelo} (${m.patente||''}) le toca su próxima mantención cerca de los ${Number(x.proxKm).toLocaleString('es-CL')} km. Le faltan aproximadamente ${x.restante.toLocaleString('es-CL')} km (km actual registrado: ${Number(m.kmActual||0).toLocaleString('es-CL')}).`)+
+    `\n\nÚltimo servicio: ${x.ultima.fechaIngreso||''} a ${Number(x.ultima.kmIngreso||0).toLocaleString('es-CL')} km.\n\nPara agendar o cualquier consulta, escríbeme.\nSaludos,\n${t.mecanico||t.nombre||''}${t.telefono?'\n'+t.telefono:''}`;
+  openModal('Enviar recordatorio', `
+    <form id="rec-form">
+      <div class="form-row"><label class="lbl">Para</label><input class="input" name="to" value="${esc(c.email)}"></div>
+      <div class="form-row"><label class="lbl">Asunto</label><input class="input" name="subject" value="${esc(subjDef)}"></div>
+      <div class="form-row"><label class="lbl">Mensaje</label><textarea class="input" name="body" rows="9" style="resize:vertical">${esc(bodyDef)}</textarea></div>
+    </form>`,
+    `<button class="btn" data-close>Cancelar</button><button class="btn primary" id="rec-send">Enviar</button>`);
+  $('#rec-send').onclick=async()=>{
+    const f=$('#rec-form');
+    const to=f.to.value.trim(), subj=f.subject.value.trim(), body=f.body.value;
+    if(!to){ toast('Falta destinatario'); return; }
+    $('#rec-send').disabled=true; $('#rec-send').textContent='Enviando…';
+    try{ await gmailSend(to, subj, body, []); closeModal(); toast('✓ Recordatorio enviado'); }
+    catch(err){ $('#rec-send').disabled=false; $('#rec-send').textContent='Enviar'; toast('Error: '+err.message); }
+  };
 }
 
 /* ================== PLANES DE MANTENCIÓN POR MODELO ================== */
@@ -2018,7 +2301,7 @@ function importarExcelPlanes(file){
    ===================================================================== */
 const GS = {
   token:null, tokenExpiry:null, clientId:'', sheetId:'',
-  SCOPES:'https://www.googleapis.com/auth/spreadsheets',
+  SCOPES:'https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/gmail.send',
   SHEETS:['Clientes','Motos','OTs','Tareas','Items','Pagos','Planes','Config'],
 };
 const GS_HEADERS = {
@@ -2100,6 +2383,52 @@ async function gsReadSheet(name, headers){
   const res=await gsRequest('GET','/values/'+encodeURIComponent(name+'!A1:ZZ'));
   if(!res.values||res.values.length<2) return [];
   return res.values.slice(1).map(r=>rowToObj(r,headers));
+}
+
+/* === Envío de correo vía Gmail API (usa el mismo token GIS) === */
+function blobToBase64(blob){
+  return new Promise((res,rej)=>{
+    const r=new FileReader();
+    r.onload=()=>res(String(r.result).split(',')[1]||''); // quita prefijo data:...;base64,
+    r.onerror=rej;
+    r.readAsDataURL(blob);
+  });
+}
+/* base64url para el body raw del API */
+function b64url(s){ return btoa(s).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,''); }
+/* codifica UTF-8 a base64 (para subjects/cuerpos con acentos) */
+function utf8b64(s){ return btoa(unescape(encodeURIComponent(s))); }
+/* Envía un correo. attachments = [{filename, type, base64}]. */
+async function gmailSend(to, subject, bodyText, attachments){
+  if(!gsIsSignedIn()) throw new Error('No conectado a Google. Ve a Sincronización y reconecta (el scope de correo se solicita al conectar).');
+  if(!to) throw new Error('Destinatario vacío');
+  const boundary='----moto77-'+Date.now().toString(36);
+  let mime='';
+  mime += 'To: '+to+'\r\n';
+  mime += 'Subject: =?UTF-8?B?'+utf8b64(subject||'')+'?=\r\n';
+  mime += 'MIME-Version: 1.0\r\n';
+  mime += 'Content-Type: multipart/mixed; boundary="'+boundary+'"\r\n\r\n';
+  mime += '--'+boundary+'\r\n';
+  mime += 'Content-Type: text/plain; charset="UTF-8"\r\n';
+  mime += 'Content-Transfer-Encoding: 7bit\r\n\r\n';
+  mime += (bodyText||'')+'\r\n';
+  (attachments||[]).forEach(a=>{
+    mime += '--'+boundary+'\r\n';
+    mime += 'Content-Type: '+(a.type||'application/octet-stream')+'; name="'+a.filename+'"\r\n';
+    mime += 'Content-Transfer-Encoding: base64\r\n';
+    mime += 'Content-Disposition: attachment; filename="'+a.filename+'"\r\n\r\n';
+    // Cortar en líneas de 76 chars (estándar MIME)
+    mime += a.base64.replace(/.{76}/g,'$&\r\n')+'\r\n';
+  });
+  mime += '--'+boundary+'--';
+  const raw=b64url(unescape(encodeURIComponent(mime)));
+  const res = await fetch('https://gmail.googleapis.com/gmail/v1/users/me/messages/send', {
+    method:'POST',
+    headers:{ 'Authorization':'Bearer '+GS.token, 'Content-Type':'application/json' },
+    body: JSON.stringify({raw})
+  });
+  if(!res.ok){ let m=res.statusText; try{ const e=await res.json(); m=(e.error&&e.error.message)||m; }catch(_){} throw new Error(m); }
+  return res.json();
 }
 
 /* Subir / cargar */
@@ -2286,7 +2615,14 @@ function seedDemo(){
 }
 
 /* ============================== INIT ================================== */
-$$('.nav-item[data-view]').forEach(n=>n.addEventListener('click',()=>navigate(n.dataset.view)));
+/* Cajón lateral en móvil. open=true/false fuerza estado; sin argumentos hace toggle. */
+function toggleSidebar(open){
+  const sb=document.querySelector('.sidebar'), bd=document.getElementById('sidebar-backdrop');
+  const want = (typeof open==='boolean') ? open : !sb.classList.contains('open');
+  sb.classList.toggle('open', want);
+  bd.classList.toggle('open', want);
+}
+$$('.nav-item[data-view]').forEach(n=>n.addEventListener('click',()=>{ navigate(n.dataset.view); toggleSidebar(false); }));
 Store.load();
 initGS();
 navigate('dashboard');
