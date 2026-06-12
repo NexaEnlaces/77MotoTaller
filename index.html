@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Taller Motos — Gestión</title>
 <script src="https://accounts.google.com/gsi/client" async defer></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
   /* ===================== Tema / variables ===================== */
@@ -1078,19 +1079,64 @@ function estadoPagoOT(o){ const id=typeof o==='string'?o:o.id; const tot=totalOT
 function taller(){ const c=Store.config(); return {nombre:c.nombre||'Ficha de Servicio', mecanico:c.mecanico||'', telefono:c.telefono||''}; }
 function telWa(tel){ return String(tel||'').replace(/[^0-9]/g,''); } // solo dígitos para wa.me
 
-/* --- Planes de mantención por modelo --- */
+/* --- Planes de mantención por familia de modelo --- */
 function normTxt(s){ return String(s||'').trim().toLowerCase(); }
-function planDeModelo(marca, modelo){
-  return Store.all('planes').find(p=>normTxt(p.marca)===normTxt(marca) && normTxt(p.modelo)===normTxt(modelo))||null;
+/* Lista canónica de tareas de un plan. Acepta el formato nuevo (plan.tareas)
+   y el legacy (plan.servicios[0].tareas) para compatibilidad. */
+function planTareas(p){
+  if(!p) return [];
+  if(Array.isArray(p.tareas)) return p.tareas;
+  if(Array.isArray(p.servicios) && p.servicios[0] && Array.isArray(p.servicios[0].tareas)) return p.servicios[0].tareas;
+  return [];
 }
-function planServicios(p){ return (p&&Array.isArray(p.servicios))?p.servicios.slice().sort((a,b)=>(Number(a.km)||0)-(Number(b.km)||0)):[]; }
-/* Índice (en la lista ORDENADA por km) del servicio sugerido para un km dado:
-   el de mayor km que no supere el km actual; si ninguno, el primero. */
-function servicioSugeridoIdx(p, km){
-  const ss=planServicios(p); if(!ss.length) return -1;
-  km=Number(km)||0; let idx=0, mejor=-1;
-  ss.forEach((s,i)=>{ const k=Number(s.km)||0; if(k<=km && k>mejor){ mejor=k; idx=i; } });
-  return idx;
+function planKeywords(p){ return (p && Array.isArray(p.palabrasClave))?p.palabrasClave.map(normTxt).filter(Boolean):[]; }
+
+/* Periodicidad por defecto (km) según el TEXTO de la tarea — SUGERENCIA,
+   validar contra el manual de cada modelo. cadaKm=0 => se hace en cada mantención. */
+function sugerirCadaKm(descripcion, indicacion){
+  const t=normTxt(descripcion+' '+(indicacion||''));
+  if(/v[aá]lvul/.test(t)) return 30000;
+  if(/\bbuj[ií]a/.test(t)) return 20000;
+  if(/filtro de aire/.test(t)) return 20000;
+  if(/l[ií]quido de freno|liquido de freno/.test(t)) return 40000;
+  if(/l[ií]quido de embrague|liquido de embrague/.test(t)) return 40000;
+  if(/refrigerante/.test(t) && /cambio|cambiar/.test(t)) return 40000;
+  if(/cardan|engranaje angular/.test(t)) return 40000;
+  if(/transmisi[óo]n|kit de arrastre|kit de cadena/.test(t)) return 40000;
+  if(/rodamiento/.test(t)) return 40000;
+  if(/escáner|escaner|escáner/.test(t)) return 0;
+  return 0; // por defecto: cada mantención
+}
+
+/* Tareas del plan aplicables a un km de servicio dado.
+   - cadaKm=0/vacío => siempre (cada mantención).
+   - cadaKm=N => aplica si km > 0 y km es múltiplo de N. */
+function tareasAplicablesAlKm(plan, km){
+  const tareas=planTareas(plan); if(!tareas.length) return [];
+  km=Number(km)||0;
+  return tareas.filter(t=>{
+    const c=Number(t.cadaKm)||0;
+    if(c<=0) return true;
+    return km>0 && (km % c)===0;
+  });
+}
+/* Encuentra el plan para una moto. Prioridad:
+   1) Match ESPECÍFICO: misma marca + alguna palabra clave aparece como PALABRA COMPLETA
+      en el modelo de la moto (bordes de palabra, así "S" no matchea dentro de "GS").
+   2) Match COMODÍN: misma marca + plan.modelo es "(todos)"/"*" / vacío. */
+function escRegex(s){ return String(s).replace(/[.*+?^${}()|[\]\\]/g,'\\$&'); }
+function planDeModelo(marca, modelo){
+  const M=normTxt(marca), m=normTxt(modelo);
+  const candidatos=Store.all('planes').filter(p=>normTxt(p.marca)===M);
+  const esComodin=p=>{ const pm=normTxt(p.modelo); return !pm||pm==='(todos)'||pm==='*'||pm==='todos'; };
+  const matchKw=(kw,target)=>new RegExp('\\b'+escRegex(kw)+'\\b','i').test(target);
+  const especifico=candidatos.find(p=>{
+    const kws=planKeywords(p);
+    if(kws.length) return kws.some(k=>matchKw(k,m));
+    return !esComodin(p) && normTxt(p.modelo)===m;
+  });
+  if(especifico) return especifico;
+  return candidatos.find(p=>planKeywords(p).length===0 && esComodin(p))||null;
 }
 
 function nextFolio(){
@@ -1235,10 +1281,8 @@ function openOTForm(id, motoPre){
             ${OT_ESTADOS.map(e=>`<option value="${e}" ${(o.estado||'Recibida')===e?'selected':''}>${e}</option>`).join('')}
           </select></div>
       </div>
-      ${id?'':`<div class="form-row" id="ot-servicio-wrap" style="display:none">
-        <label class="lbl">Servicio a realizar (según el plan del modelo)</label>
-        <select class="select" name="servicioIdx" id="ot-servicio"></select>
-        <div class="hint" id="ot-servicio-hint"></div>
+      ${id?'':`<div class="form-row" id="ot-plan-wrap" style="display:none">
+        <div class="hint" id="ot-plan-hint" style="background:var(--accent-soft);color:var(--accent-2);padding:8px 12px;border-radius:8px;font-weight:600"></div>
       </div>`}
       <div class="form-row two">
         <div><label class="lbl">KM de ingreso</label>
@@ -1274,24 +1318,24 @@ function openOTForm(id, motoPre){
   if(!id){
     const motoSel=form.motoId, kmInp=form.kmIngreso;
     const setKm=()=>{ const m=Store.get('motos',motoSel.value); if(m && !kmInp.value) kmInp.value=m.kmActual||''; };
-    // Selector de servicio según el plan del modelo
-    const updateServicio=()=>{
-      const wrap=document.getElementById('ot-servicio-wrap'); if(!wrap) return;
-      const sel=document.getElementById('ot-servicio'), hint=document.getElementById('ot-servicio-hint');
+    // Detecta el plan del modelo y muestra cuántas tareas aplican al km
+    const updatePlan=()=>{
+      const wrap=document.getElementById('ot-plan-wrap'); if(!wrap) return;
+      const hint=document.getElementById('ot-plan-hint');
       const m=Store.get('motos',motoSel.value);
       const plan=m?planDeModelo(m.marca,m.modelo):null;
-      const ss=plan?planServicios(plan):[];
-      if(form.tipo.value!=='Mantención Preventiva' || !ss.length){ wrap.style.display='none'; sel.innerHTML=''; return; }
+      const todas=planTareas(plan);
+      if(form.tipo.value!=='Mantención Preventiva' || !plan || !todas.length){ wrap.style.display='none'; return; }
       const km=Number(kmInp.value)||(m?m.kmActual:0)||0;
-      const sug=servicioSugeridoIdx(plan,km);
-      sel.innerHTML=ss.map((s,i)=>`<option value="${i}" ${i===sug?'selected':''}>Servicio ${Number(s.km).toLocaleString('es-CL')} km — ${(s.tareas||[]).length} tareas</option>`).join('');
-      hint.textContent='Plan: '+plan.marca+' '+plan.modelo+'. Sugerido por el km de ingreso; puedes cambiarlo.';
+      const aplic=tareasAplicablesAlKm(plan,km);
+      const n=aplic.length||todas.length;
+      hint.textContent='Plan detectado: '+plan.marca+' '+plan.modelo+' — al km '+km.toLocaleString('es-CL')+' se cargarán '+n+' de '+todas.length+' tareas.';
       wrap.style.display='block';
     };
-    motoSel.onchange=()=>{ setKm(); updateServicio(); };
-    form.tipo.onchange=updateServicio;
-    kmInp.oninput=updateServicio;
-    setKm(); updateServicio();
+    motoSel.onchange=()=>{ setKm(); updatePlan(); };
+    form.tipo.onchange=updatePlan;
+    kmInp.oninput=updatePlan;
+    setKm(); updatePlan();
   }
   const save=()=>{
     const fd=new FormData(form);
@@ -1317,12 +1361,14 @@ function openOTForm(id, motoPre){
       payload.folio=nextFolio();
       otId=Store.insert('ots',payload).id;
       if(payload.tipo==='Mantención Preventiva'){
-        // Si el modelo tiene plan y se eligió un servicio, usar sus tareas; si no, el checklist estándar.
+        // Si la marca/modelo tiene un plan, filtra las tareas aplicables al km de servicio;
+        // si no hay plan, cae al checklist estándar.
         const plan=moto?planDeModelo(moto.marca,moto.modelo):null;
-        const ss=plan?planServicios(plan):[];
-        const idx=form.servicioIdx?parseInt(form.servicioIdx.value,10):-1;
-        const serv=(ss.length && idx>=0 && ss[idx])?ss[idx]:null;
-        const lista=serv?serv.tareas:TAREAS_MANT_PREVENTIVA;
+        let lista;
+        if(plan && planTareas(plan).length){
+          const aplic=tareasAplicablesAlKm(plan, payload.kmIngreso);
+          lista = aplic.length?aplic:planTareas(plan);  // si nada calza (km=0), carga todo
+        } else { lista=TAREAS_MANT_PREVENTIVA; }
         lista.forEach(t=>Store.insert('tareas',{otId,descripcion:t.d,indicacion:t.i,hecha:false,comentario:''}));
       }
     }
@@ -1767,117 +1813,202 @@ function openTallerConfig(){
 
 /* ================== PLANES DE MANTENCIÓN POR MODELO ================== */
 function renderPlanes(){
-  $('#topbar-action').innerHTML=`<button class="btn primary" onclick="openPlanForm()">&#43; Nuevo plan</button>`;
+  $('#topbar-action').innerHTML=`
+    <input type="file" id="excel-input" accept=".xlsx,.xls" style="display:none" onchange="importarExcelPlanes(this.files[0]); this.value=''">
+    <button class="btn" onclick="document.getElementById('excel-input').click()">&#128194; Importar Excel</button>
+    <button class="btn primary" onclick="openPlanForm()">&#43; Nuevo plan</button>`;
   const el=$('#view-planes');
   const planes=Store.all('planes').slice().sort((a,b)=>(a.marca+a.modelo).localeCompare(b.marca+b.modelo));
   el.innerHTML=`
     <div class="card" style="padding:14px 18px;margin-bottom:16px;color:var(--text-dim);font-size:13px;line-height:1.6">
-      Define aquí los servicios de cada modelo (cada 10.000 km, etc.) con sus tareas. Al crear una <strong>Orden de Trabajo de Mantención Preventiva</strong>, la app detecta el km de la moto y carga el checklist del servicio que corresponde.
+      Define aquí los planes de mantención por familia de modelo. Cada tarea lleva su periodicidad (cada cuántos km se hace). Al crear una <strong>Orden de Trabajo de Mantención Preventiva</strong>, la app detecta el modelo de la moto, filtra las tareas que tocan a ese kilometraje y arma el checklist.
     </div>
     ${planes.length?`<div class="card"><table>
-      <thead><tr><th>Marca</th><th>Modelo</th><th>Servicios</th><th></th></tr></thead>
-      <tbody>${planes.map(p=>{const ss=planServicios(p);return `<tr style="cursor:pointer" onclick="navigate('plan-detail',{id:'${p.id}'})">
+      <thead><tr><th>Marca</th><th>Familia</th><th>Tareas</th><th>Palabras clave</th><th></th></tr></thead>
+      <tbody>${planes.map(p=>{ const tareas=planTareas(p); const kws=(p.palabrasClave||[]).join(', '); return `<tr style="cursor:pointer" onclick="navigate('plan-detail',{id:'${p.id}'})">
         <td class="t-main">${esc(p.marca)}</td><td>${esc(p.modelo)}</td>
-        <td>${ss.length?ss.map(s=>`<span class="tag gray" style="margin:1px">${Number(s.km).toLocaleString('es-CL')} km</span>`).join(' '):'<span style="color:var(--muted)">sin servicios</span>'}</td>
+        <td>${tareas.length?`<span class="tag gray">${tareas.length} tareas</span>`:'<span style="color:var(--muted)">sin tareas</span>'}</td>
+        <td style="color:var(--text-dim);font-size:12.5px">${kws?esc(kws):'<span style="color:var(--muted)">—</span>'}</td>
         <td onclick="event.stopPropagation()"><div class="row-actions">
           <button class="btn sm ghost" onclick="navigate('plan-detail',{id:'${p.id}'})">Editar</button>
           <button class="btn sm danger" onclick="eliminarPlan('${p.id}')">Eliminar</button>
         </div></td></tr>`;}).join('')}</tbody></table></div>`
-    :`<div class="card empty"><div class="big">&#128203;</div><h3>Aún no hay planes</h3><p>Crea el plan de un modelo (ej: KTM 990) con sus servicios y tareas. Queda guardado para autocompletar las próximas mantenciones.</p><button class="btn primary" onclick="openPlanForm()">&#43; Nuevo plan</button></div>`}`;
+    :`<div class="card empty"><div class="big">&#128203;</div><h3>Aún no hay planes</h3><p>Importa tu Excel con los planes de tus modelos, o crea uno manualmente.</p>
+      <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap">
+        <button class="btn" onclick="document.getElementById('excel-input').click()">&#128194; Importar Excel</button>
+        <button class="btn primary" onclick="openPlanForm()">&#43; Nuevo plan</button>
+      </div></div>`}`;
 }
 function openPlanForm(id){
   const p=id?Store.get('planes',id):{};
-  openModal(id?'Editar plan':'Nuevo plan de mantención',`
+  const kws=(p.palabrasClave||[]).join(', ');
+  openModal(id?'Editar familia / plan':'Nueva familia / plan',`
     <form id="plan-form">
       <div class="form-row two">
-        <div><label class="lbl">Marca <span class="req">*</span></label><input class="input" name="marca" value="${esc(p.marca||'')}" placeholder="KTM"></div>
-        <div><label class="lbl">Modelo <span class="req">*</span></label><input class="input" name="modelo" value="${esc(p.modelo||'')}" placeholder="990 Adventure"></div>
+        <div><label class="lbl">Marca <span class="req">*</span></label><input class="input" name="marca" value="${esc(p.marca||'')}" placeholder="BMW"></div>
+        <div><label class="lbl">Familia / modelo <span class="req">*</span></label><input class="input" name="modelo" value="${esc(p.modelo||'')}" placeholder="R LC"></div>
       </div>
-      <div class="hint">El plan se vincula por marca + modelo. Escríbelos igual que en la ficha de la moto para que se reconozcan automáticamente.</div>
+      <div class="form-row">
+        <label class="lbl">Palabras clave — qué modelos cubre esta familia</label>
+        <input class="input" name="palabrasClave" value="${esc(kws)}" placeholder="R 1200, R 1250, R 1300">
+        <div class="hint">Separadas por coma. La app reconoce el plan si el modelo de la moto contiene alguna de estas palabras. Ej: "R 1200, R 1250" hace match con "R 1250 GS" o "R 1200 RT".</div>
+      </div>
+      <div class="form-row" style="max-width:260px">
+        <label class="lbl">Intervalo base entre mantenciones (km)</label>
+        <input class="input" name="intervaloBase" type="number" min="0" value="${esc(p.intervaloBase||'')}" placeholder="10000">
+        <div class="hint">Informativo. Cada tarea lleva su propia periodicidad.</div>
+      </div>
     </form>`,
     `<button class="btn" data-close>Cancelar</button><button class="btn primary" id="plan-save">Guardar</button>`);
-  const save=()=>{ const f=$('#plan-form'); const marca=f.marca.value.trim(), modelo=f.modelo.value.trim();
-    if(!marca||!modelo){ toast('Marca y modelo son obligatorios'); return; }
-    if(id){ Store.update('planes',id,{marca,modelo}); closeModal(); renderView(state.view); toast('Plan actualizado'); }
-    else { const np=Store.insert('planes',{marca,modelo,servicios:[]}); closeModal(); navigate('plan-detail',{id:np.id}); toast('Plan creado'); }
+  const save=()=>{
+    const f=$('#plan-form');
+    const marca=f.marca.value.trim(), modelo=f.modelo.value.trim();
+    const palabrasClave=(f.palabrasClave.value||'').split(',').map(s=>s.trim()).filter(Boolean);
+    const intervaloBase=Number(f.intervaloBase.value)||0;
+    if(!marca||!modelo){ toast('Marca y familia son obligatorios'); return; }
+    if(id){ Store.update('planes',id,{marca,modelo,palabrasClave,intervaloBase}); closeModal(); renderView(state.view); toast('Plan actualizado'); }
+    else { const np=Store.insert('planes',{marca,modelo,palabrasClave,intervaloBase,tareas:[]}); closeModal(); navigate('plan-detail',{id:np.id}); toast('Plan creado'); }
   };
   $('#plan-save').onclick=save; $('#plan-form').onsubmit=e=>{e.preventDefault();save();};
 }
 function eliminarPlan(id){ const p=Store.get('planes',id); if(!p) return;
   confirmDialog(`¿Eliminar el plan de ${p.marca} ${p.modelo}? Las OTs ya creadas no se ven afectadas.`,()=>{ Store.remove('planes',id); if(state.view==='plan-detail') navigate('planes'); else renderView(state.view); toast('Plan eliminado'); }); }
+
+function cadaKmLabel(n){ n=Number(n)||0; if(!n) return 'Cada mantención'; return 'Cada '+n.toLocaleString('es-CL')+' km'; }
+
 function renderPlanDetail(id){
   const p=Store.get('planes',id), el=$('#view-plan-detail');
   if(!p){ el.innerHTML=`<div class="card empty"><h3>Plan no encontrado</h3><button class="btn" onclick="navigate('planes')">Volver</button></div>`; return; }
-  const ss=planServicios(p);
+  const tareas=planTareas(p);
+  const kws=(p.palabrasClave||[]).join(', ');
   $('#topbar-action').innerHTML=`<button class="btn ghost" onclick="navigate('planes')">&#8592; Volver</button>
-    <button class="btn" onclick="openPlanForm('${p.id}')">Editar modelo</button>
-    <button class="btn primary" onclick="openServicioForm('${p.id}')">&#43; Agregar servicio</button>`;
+    <button class="btn" onclick="openPlanForm('${p.id}')">Editar familia</button>
+    <button class="btn primary" onclick="openPlanTareasEditor('${p.id}')">Editar tareas</button>`;
   el.innerHTML=`
     <div class="card" style="margin-bottom:16px"><div class="detail-head" style="padding:18px">
       <div class="moto-avatar">&#128295;</div>
-      <div style="flex:1;min-width:200px"><h2>${esc(p.marca)} ${esc(p.modelo)}</h2>
-      <div style="color:var(--text-dim);margin-top:4px">${ss.length} servicio(s) definido(s)</div></div>
-    </div></div>
-    ${ss.length? ss.map((s,idx)=>`
-      <div class="card" style="margin-bottom:12px">
-        <div class="panel-head">
-          <h3>Servicio ${Number(s.km).toLocaleString('es-CL')} km <span class="tag gray" style="margin-left:6px">${(s.tareas||[]).length} tareas</span></h3>
-          <span class="row-actions">
-            <button class="btn sm ghost" onclick="openServicioForm('${p.id}',${idx})">Editar</button>
-            <button class="btn sm danger" onclick="eliminarServicio('${p.id}',${idx})">Eliminar</button>
-          </span>
-        </div>
-        <div style="padding:6px 0">
-          ${(s.tareas||[]).map(t=>`<div style="padding:9px 18px;border-bottom:1px solid var(--border)"><div style="font-weight:600">${esc(t.d)}</div>${t.i?`<div style="font-size:11.5px;color:var(--muted);margin-top:2px">${esc(t.i)}</div>`:''}</div>`).join('')||'<div style="padding:16px 18px;color:var(--muted)">Sin tareas</div>'}
-        </div>
-      </div>`).join('')
-    :`<div class="card empty"><div class="big">&#128203;</div><h3>Sin servicios</h3><p>Agrega el primer servicio (ej: 10.000 km) con sus tareas.</p><button class="btn primary" onclick="openServicioForm('${p.id}')">&#43; Agregar servicio</button></div>`}`;
-}
-function servTaskRowHTML(d,i){ return `<div class="serv-row" style="display:flex;gap:8px;margin-bottom:6px">
-    <input class="input serv-d" placeholder="Tarea (ej: Cambio de aceite)" value="${esc(d||'')}" style="flex:1">
-    <input class="input serv-i" placeholder="Indicación (ej: 10W50, 3,2 lts)" value="${esc(i||'')}" style="flex:1">
-    <button type="button" class="btn sm danger" onclick="this.closest('.serv-row').remove()" style="flex:none">&times;</button>
-  </div>`; }
-function addServRow(){ const c=document.getElementById('serv-tareas'); if(c) c.insertAdjacentHTML('beforeend', servTaskRowHTML('','')); }
-function servCargarBase(){ const c=document.getElementById('serv-tareas'); if(c) c.insertAdjacentHTML('beforeend', TAREAS_MANT_PREVENTIVA.map(t=>servTaskRowHTML(t.d,t.i)).join('')); }
-function openServicioForm(planId, servIdx){
-  const p=Store.get('planes',planId); if(!p) return;
-  const editing=(servIdx!=null && servIdx>=0);
-  const ss=planServicios(p);
-  const serv=editing?ss[servIdx]:{km:'',tareas:[]};
-  openModal(editing?'Editar servicio':'Nuevo servicio', `
-    <form id="serv-form" onsubmit="return false">
-      <div class="form-row" style="max-width:240px"><label class="lbl">Kilometraje del servicio <span class="req">*</span></label>
-        <input class="input" name="km" type="number" min="0" value="${esc(serv.km||'')}" placeholder="10000"></div>
-      <label class="lbl">Tareas del servicio</label>
-      <div id="serv-tareas">${(serv.tareas&&serv.tareas.length?serv.tareas:[{d:'',i:''}]).map(t=>servTaskRowHTML(t.d,t.i)).join('')}</div>
-      <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap">
-        <button type="button" class="btn sm" onclick="addServRow()">&#43; Agregar tarea</button>
-        <button type="button" class="btn sm ghost" onclick="servCargarBase()">Cargar checklist base</button>
+      <div style="flex:1;min-width:200px">
+        <h2>${esc(p.marca)} ${esc(p.modelo)}</h2>
+        <div style="color:var(--text-dim);margin-top:4px">${tareas.length} tareas${p.intervaloBase?` &middot; intervalo base ${Number(p.intervaloBase).toLocaleString('es-CL')} km`:''}</div>
+        ${kws?`<div style="color:var(--text-dim);margin-top:6px;font-size:12.5px">Palabras clave: <strong style="color:var(--text)">${esc(kws)}</strong></div>`:`<div style="color:var(--accent-2);margin-top:6px;font-size:12.5px">&#9888; Sin palabras clave: solo hace match si el modelo de la moto se escribe exactamente "${esc(p.modelo)}".</div>`}
       </div>
-    </form>`,
-    `<button class="btn" data-close>Cancelar</button><button class="btn primary" id="serv-save">Guardar servicio</button>`);
-  const save=()=>{
-    const km=Number($('#serv-form').km.value)||0;
-    const tareas=$$('#serv-tareas .serv-row').map(r=>({d:r.querySelector('.serv-d').value.trim(), i:r.querySelector('.serv-i').value.trim()})).filter(t=>t.d);
-    if(!km){ toast('Indica el kilometraje del servicio'); return; }
-    if(!tareas.length){ toast('Agrega al menos una tarea'); return; }
-    const nuevos=ss.slice();
-    if(editing) nuevos[servIdx]={km,tareas}; else nuevos.push({km,tareas});
-    nuevos.sort((a,b)=>(Number(a.km)||0)-(Number(b.km)||0));
-    Store.update('planes',planId,{servicios:nuevos});
-    closeModal(); renderPlanDetail(planId); toast('Servicio guardado');
-  };
-  $('#serv-save').onclick=save;
+    </div></div>
+    <div class="card">
+      <div class="panel-head"><h3>Tareas del plan</h3>
+        <button class="btn sm primary" onclick="openPlanTareasEditor('${p.id}')">&#43; Editar tareas</button>
+      </div>
+      ${tareas.length? `<table><thead><tr><th style="width:36px">N°</th><th>Descripción</th><th>Indicación</th><th style="width:170px">Periodicidad</th></tr></thead>
+        <tbody>${tareas.map((t,i)=>`<tr><td style="color:var(--muted)">${i+1}</td><td class="t-main">${esc(t.d)}</td><td style="color:var(--text-dim);font-size:12.5px">${esc(t.i||'')}</td><td><span class="tag ${(Number(t.cadaKm)||0)?'orange':'gray'}">${esc(cadaKmLabel(t.cadaKm))}</span></td></tr>`).join('')}</tbody></table>`
+        :`<div class="empty" style="padding:30px"><div class="big">&#128203;</div><h3>Sin tareas</h3><p>Agrega las tareas de este plan o importa el Excel desde la vista Planes.</p><button class="btn primary" onclick="openPlanTareasEditor('${p.id}')">&#43; Editar tareas</button></div>`}
+    </div>`;
 }
-function eliminarServicio(planId, idx){
-  const p=Store.get('planes',planId); if(!p) return;
-  const ss=planServicios(p); if(!ss[idx]) return;
-  confirmDialog(`¿Eliminar el servicio de ${Number(ss[idx].km).toLocaleString('es-CL')} km?`,()=>{
-    const nuevos=ss.slice(); nuevos.splice(idx,1);
-    Store.update('planes',planId,{servicios:nuevos});
-    renderPlanDetail(planId); toast('Servicio eliminado');
+
+function planTareaRowHTML(d,i,c){
+  return `<div class="pt-row" style="display:grid;grid-template-columns:1fr 1.4fr 130px 36px;gap:6px;margin-bottom:6px;align-items:center">
+    <input class="input pt-d" placeholder="Descripción" value="${esc(d||'')}">
+    <input class="input pt-i" placeholder="Indicación" value="${esc(i||'')}">
+    <input class="input pt-c" type="number" min="0" placeholder="0 = c/mant." value="${Number(c)||''}" title="Cada cuántos km (0 = cada mantención)">
+    <button type="button" class="btn sm danger" onclick="this.closest('.pt-row').remove()" title="Quitar">&times;</button>
+  </div>`;
+}
+function addPlanTareaRow(){ const c=document.getElementById('plan-tareas'); if(c) c.insertAdjacentHTML('beforeend', planTareaRowHTML('','',0)); }
+function planTareasCargarBase(){ const c=document.getElementById('plan-tareas'); if(c) c.insertAdjacentHTML('beforeend', TAREAS_MANT_PREVENTIVA.map(t=>planTareaRowHTML(t.d,t.i, sugerirCadaKm(t.d,t.i))).join('')); }
+function planTareasSugerir(){
+  $$('#plan-tareas .pt-row').forEach(r=>{
+    const c=r.querySelector('.pt-c'); if(c.value && Number(c.value)>0) return;
+    const sug=sugerirCadaKm(r.querySelector('.pt-d').value, r.querySelector('.pt-i').value);
+    if(sug>0) c.value=sug;
   });
+  toast('Periodicidades sugeridas aplicadas (sin pisar las que ya tenías)');
+}
+function openPlanTareasEditor(planId){
+  const p=Store.get('planes',planId); if(!p) return;
+  const tareas=planTareas(p);
+  openModal(`Tareas — ${p.marca} ${p.modelo}`, `
+    <p style="margin:0 0 12px;color:var(--text-dim);font-size:12.5px;line-height:1.5">Edita las tareas y su periodicidad. <strong>"Cada km" = 0</strong> significa que la tarea va en <strong>cada mantención</strong> (ej. aceite). Pon un número para tareas periódicas (ej. válvulas: 30000).</p>
+    <div style="display:grid;grid-template-columns:1fr 1.4fr 130px 36px;gap:6px;margin-bottom:4px;font-size:10.5px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em">
+      <div>Descripción</div><div>Indicación</div><div>Cada km</div><div></div>
+    </div>
+    <div id="plan-tareas">
+      ${(tareas.length?tareas:[{d:'',i:'',cadaKm:0}]).map(t=>planTareaRowHTML(t.d,t.i,t.cadaKm)).join('')}
+    </div>
+    <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap">
+      <button type="button" class="btn sm" onclick="addPlanTareaRow()">&#43; Agregar tarea</button>
+      <button type="button" class="btn sm ghost" onclick="planTareasCargarBase()">Cargar checklist base</button>
+      <button type="button" class="btn sm ghost" onclick="planTareasSugerir()">Sugerir periodicidades</button>
+    </div>`,
+    `<button class="btn" data-close>Cancelar</button><button class="btn primary" id="plan-tareas-save">Guardar</button>`);
+  const save=()=>{
+    const lista=$$('#plan-tareas .pt-row').map(r=>({
+      d:r.querySelector('.pt-d').value.trim(),
+      i:r.querySelector('.pt-i').value.trim(),
+      cadaKm:Number(r.querySelector('.pt-c').value)||0,
+    })).filter(t=>t.d);
+    Store.update('planes',planId,{tareas:lista});
+    closeModal(); renderPlanDetail(planId); toast('Guardado: '+lista.length+' tareas');
+  };
+  $('#plan-tareas-save').onclick=save;
+}
+
+/* Importar planes desde Excel (.xlsx).
+   Cada hoja = una familia. Nombre de pestaña → marca + modelo + palabras clave.
+   Columnas: B=Descripción, C=Indicación (D=Check y E=Comentario se ignoran). */
+function importarExcelPlanes(file){
+  if(!file) return;
+  if(!window.XLSX){ toast('La librería de Excel aún no cargó. Espera 2s y reintenta.'); return; }
+  const reader=new FileReader();
+  reader.onload=(e)=>{
+    try{
+      const wb=XLSX.read(e.target.result,{type:'array'});
+      const planesNuevos=[]; const reporte=[];
+      wb.SheetNames.forEach(name=>{
+        const sheet=wb.Sheets[name];
+        const rows=XLSX.utils.sheet_to_json(sheet,{header:1,defval:''});
+        // Parsear nombre de pestaña: "MARCA <familia>"
+        const parts=String(name).trim().split(/\s+/);
+        const marca=parts[0]||name;
+        let modelo=parts.slice(1).join(' ').trim();
+        let palabrasClave=[];
+        if(modelo){
+          const numMatch=modelo.match(/\d+(?:-\d+)+/);
+          if(numMatch) palabrasClave=numMatch[0].split('-');
+          else palabrasClave=[modelo];
+        } else { modelo='(todos)'; }
+        // Extraer tareas: cols B (Descripción), C (Indicación), F (Km sugerido si está).
+        // Si F tiene un número válido (incluido 0), úsalo; si está vacío, cae a la heurística.
+        const tareas=[];
+        for(let r=0;r<rows.length;r++){
+          const row=rows[r];
+          const d=String(row[1]||'').trim();
+          if(!d) continue;
+          if(/^descripci/i.test(d)) continue;        // saltar fila de encabezados
+          if(/^observaciones?$/i.test(d)) break;     // sección "Observaciones" → fin del checklist
+          const ind=String(row[2]||'').trim();
+          const kmCell=row[5];
+          const kmStr=(kmCell===undefined||kmCell===null)?'':String(kmCell).trim();
+          const kmExplicito = kmStr!=='' && !isNaN(Number(kmStr));
+          const cadaKm = kmExplicito ? Number(kmStr) : sugerirCadaKm(d,ind);
+          tareas.push({d, i:ind, cadaKm});
+        }
+        if(!tareas.length){ reporte.push(`• ${name}: 0 tareas (saltada)`); return; }
+        planesNuevos.push({marca, modelo, palabrasClave, intervaloBase:10000, tareas});
+        reporte.push(`• ${marca} ${modelo}: ${tareas.length} tareas (${palabrasClave.length?'kw: '+palabrasClave.join('/'):'sin keywords'})`);
+      });
+      if(!planesNuevos.length){ toast('No se encontraron tareas en el archivo.'); return; }
+      const totalTareas=planesNuevos.reduce((s,p)=>s+p.tareas.length,0);
+      const msg=`Importar ${planesNuevos.length} plan(es) con ${totalTareas} tareas en total?\n\n${reporte.join('\n')}\n\nSi ya existe un plan con la misma marca + modelo, se REEMPLAZAN sus tareas y palabras clave (puedes ajustarlas luego en el editor).\nLas periodicidades quedan como SUGERENCIA — valida contra los manuales reales.`;
+      if(!confirm(msg)) return;
+      let creados=0, actualizados=0;
+      planesNuevos.forEach(np=>{
+        const ex=Store.all('planes').find(p=>normTxt(p.marca)===normTxt(np.marca) && normTxt(p.modelo)===normTxt(np.modelo));
+        if(ex){ Store.update('planes',ex.id,{palabrasClave:np.palabrasClave,intervaloBase:np.intervaloBase,tareas:np.tareas}); actualizados++; }
+        else { Store.insert('planes',np); creados++; }
+      });
+      toast('Importado: '+creados+' creados, '+actualizados+' actualizados');
+      if(state.view==='planes') renderPlanes();
+    }catch(err){ toast('Error al leer el Excel: '+err.message); }
+  };
+  reader.readAsArrayBuffer(file);
 }
 
 /* ================== SINCRONIZACIÓN CON GOOGLE SHEETS ==================
@@ -1892,7 +2023,7 @@ const GS = {
 };
 const GS_HEADERS = {
   Clientes:['id','nombre','rut','telefono','email','createdAt'],
-  Planes:['id','marca','modelo','servicios','createdAt'],
+  Planes:['id','marca','modelo','palabrasClave','intervaloBase','tareas','createdAt'],
   Motos:['id','clienteId','marca','modelo','anio','patente','color','numeroMotor','numeroChasis','kmActual','historialDuenos','createdAt'],
   OTs:['id','motoId','clienteId','folio','tipo','estado','estadoPago','kmIngreso','mecanico','fechaIngreso','fechaEntrega','descripcion','observaciones','linkFotos','createdAt'],
   Tareas:['id','otId','descripcion','indicacion','hecha','comentario','createdAt'],
@@ -1909,7 +2040,13 @@ function parseColeccion(col, rows){
   if(col==='tareas') rows.forEach(t=>{ t.hecha=(t.hecha===true||t.hecha==='true'||t.hecha==='TRUE'); });
   if(col==='items') rows.forEach(it=>{ it.monto=Number(it.monto)||0; });
   if(col==='pagos') rows.forEach(p=>{ p.monto=Number(p.monto)||0; });
-  if(col==='planes') rows.forEach(p=>{ try{ p.servicios=p.servicios?JSON.parse(p.servicios):[]; }catch(e){ p.servicios=[]; } });
+  if(col==='planes') rows.forEach(p=>{
+    try{ p.palabrasClave=p.palabrasClave?JSON.parse(p.palabrasClave):[]; }catch(e){ p.palabrasClave=[]; }
+    try{ p.tareas=p.tareas?JSON.parse(p.tareas):[]; }catch(e){ p.tareas=[]; }
+    p.intervaloBase=Number(p.intervaloBase)||0;
+    // compat con datos legacy que aún tengan 'servicios'
+    if(p.servicios){ try{ p.servicios=typeof p.servicios==='string'?JSON.parse(p.servicios):p.servicios; }catch(e){ p.servicios=[]; } }
+  });
   return rows;
 }
 
@@ -1921,6 +2058,7 @@ function gsLoadConfig(){ const g=Store.data.gsConfig; if(g){ GS.clientId=g.clien
 /* Auth con Google Identity Services */
 function gsSignIn(){
   if(!GS.clientId||!GS.sheetId){ syncStatus('Ingresa el Client ID y el link de la planilla primero.','err'); return; }
+  if(!/\.apps\.googleusercontent\.com$/.test(GS.clientId)){ syncStatus('El Client ID parece incompleto. Debe terminar en ".apps.googleusercontent.com" — cópialo COMPLETO desde Google Cloud (es el "ID de cliente", no la clave secreta).','err'); return; }
   if(!(window.google&&google.accounts&&google.accounts.oauth2)){ syncStatus('La librería de Google aún no termina de cargar. Espera unos segundos y reintenta.','warn'); return; }
   try{
     const client=google.accounts.oauth2.initTokenClient({
@@ -2037,9 +2175,10 @@ function updateSyncPill(){
   else pill.innerHTML='<span class="dot"></span> Solo local (sin sync)';
 }
 function gsSaveFromUI(thenConnect){
-  const cid=($('#gs-client').value||'').trim();
+  const cid=($('#gs-client').value||'').replace(/\s+/g,'');   // quita espacios/saltos de línea de un pegado descuidado
   const sid=gsExtractSheetId(($('#gs-sheet').value||'').trim());
   if(!cid||!sid){ syncStatus('Completa el Client ID y el link de la planilla.','warn'); return; }
+  if(!/\.apps\.googleusercontent\.com$/.test(cid)){ syncStatus('El Client ID parece incompleto. Debe terminar en ".apps.googleusercontent.com" — cópialo COMPLETO desde Google Cloud.','err'); return; }
   gsSaveConfig(cid,sid); updateSyncPill();
   if(thenConnect) gsSignIn(); else { syncStatus('Credenciales guardadas.','ok'); }
 }
@@ -2132,11 +2271,16 @@ function seedDemo(){
   // Abonos de ejemplo: o1 con un abono parcial; o2 pagada por completo
   Store.insert('pagos',{otId:o1.id,fecha:todayISO(),monto:50000,medio:'Transferencia'});
   Store.insert('pagos',{otId:o2.id,fecha:'2026-05-12',monto:73000,medio:'Efectivo'});
-  // Plan de mantención de EJEMPLO (tareas ilustrativas — reemplazar por las del manual real)
-  Store.insert('planes',{marca:'Honda',modelo:'CB 190R',servicios:[
-    {km:6000, tareas:[{d:'Cambio de aceite de motor',i:'Según especificación'},{d:'Revisión de filtro de aire',i:'Limpiar o cambiar'},{d:'Lubricación y tensión de cadena',i:'Limpieza, medición y engrase'},{d:'Revisión de frenos',i:'Desgaste de pastillas'}]},
-    {km:12000, tareas:[{d:'Cambio de aceite de motor',i:'Según especificación'},{d:'Cambio de filtro de aceite',i:'Filtro según modelo'},{d:'Cambio de bujía',i:'NGK según modelo'},{d:'Cambio de filtro de aire',i:'Reemplazo'},{d:'Lubricación y tensión de cadena',i:'Limpieza, medición y engrase'},{d:'Revisión de frenos',i:'Desgaste de pastillas y líquido'}]},
-    {km:24000, tareas:[{d:'Cambio de aceite de motor',i:'Según especificación'},{d:'Cambio de filtro de aceite',i:'Filtro según modelo'},{d:'Revisión / ajuste de holgura de válvulas',i:'Medición y ajuste'},{d:'Cambio de bujía',i:'NGK según modelo'},{d:'Cambio de líquido de frenos',i:'DOT4'},{d:'Servicio de cadena',i:'Medición de desgaste, posible cambio de kit'}]},
+  // Plan de mantención de EJEMPLO con periodicidad por tarea (validar contra el manual real)
+  Store.insert('planes',{marca:'Honda',modelo:'CB 190R',palabrasClave:['CB 190'],intervaloBase:6000,tareas:[
+    {d:'Cambio de aceite de motor', i:'Según especificación', cadaKm:0},
+    {d:'Cambio de filtro de aceite', i:'Filtro según modelo', cadaKm:12000},
+    {d:'Revisión / limpieza de filtro de aire', i:'Limpiar o cambiar', cadaKm:0},
+    {d:'Lubricación y tensión de cadena', i:'Limpieza, medición y engrase', cadaKm:0},
+    {d:'Revisión de bujía', i:'NGK según modelo', cadaKm:12000},
+    {d:'Revisión de frenos', i:'Desgaste de pastillas', cadaKm:0},
+    {d:'Revisión / ajuste de holgura de válvulas', i:'Medición y ajuste', cadaKm:24000},
+    {d:'Cambio de líquido de frenos', i:'DOT4', cadaKm:24000},
   ]});
   Store.save();
 }
